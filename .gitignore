@@ -1,0 +1,12 @@
+.venv/
+.python-version
+build/
+deprecated/
+deps/
+dist/
+pcre2.egg-info/
+pcre2/**/*.c
+pcre2/**/*.html
+**/__pycache__/
+**/.DS_Store
+tests
