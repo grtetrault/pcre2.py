@@ -11,11 +11,17 @@ from cpython.unicode cimport PyUnicode_Check
 
 # Local imports.
 from pcre2._libs.libpcre2 cimport (
-    sptr_t, match_data_t, 
-    match, match_data_create_from_pattern, match_data_free,
-    substring_get_byname, substring_get_bynumber,
-    substitute, SUBSTITUTE_MATCHED, SUBSTITUTE_REPLACEMENT_ONLY,
-    ERROR_UNSET
+    pcre2_sptr_t,
+    pcre2_match_data_t, 
+    pcre2_match,
+    pcre2_match_data_create_from_pattern,
+    pcre2_match_data_free,
+    pcre2_substring_get_byname,
+    pcre2_substring_get_bynumber,
+    pcre2_substitute,
+    PCRE2_SUBSTITUTE_MATCHED,
+    PCRE2_SUBSTITUTE_REPLACEMENT_ONLY,
+    PCRE2_ERROR_UNSET
 )
 
 from pcre2._utils.strings cimport get_buffer
@@ -54,13 +60,14 @@ cdef class Match:
         self.options = options
 
         # Attempt match of pattern onto subject.
-        self.match_data = match_data_create_from_pattern(self.pattern.code, NULL)
+        self.match_data = pcre2_match_data_create_from_pattern(self.pattern.code, NULL)
         if not self.match_data:
             raise MemoryError()
         
-        cdef int match_rc = match(
+        cdef int match_rc = pcre2_match(
             self.pattern.code,
-            <sptr_t>self.subject.buf, <size_t>self.subject.len,
+            <pcre2_sptr_t>self.subject.buf,
+            <size_t>self.subject.len,
             0, # Start offset.
             self.options,
             self.match_data,
@@ -72,4 +79,4 @@ cdef class Match:
 
     def __dealloc__(self):
         PyBuffer_Release(self.subject)
-        match_data_free(self.match_data)
+        pcre2_match_data_free(self.match_data)

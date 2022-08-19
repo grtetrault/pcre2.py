@@ -10,8 +10,10 @@ from libc.stdint cimport uint8_t, uint32_t
 
 # Local imports.
 from pcre2._libs.libpcre2 cimport (
-    get_error_message,
-    ERROR_NOMEMORY, ERROR_NOMATCH, ERROR_PARTIAL
+    pcre2_get_error_message,
+    PCRE2_ERROR_NOMEMORY,
+    PCRE2_ERROR_NOMATCH,
+    PCRE2_ERROR_PARTIAL
 )
 from pcre2._utils.strings cimport get_buffer
 
@@ -25,13 +27,13 @@ class LibraryError(Exception):
 
     def __init__(self, errorcode, context_msg=""):
         cdef uint8_t errormsg_buf[120]
-        cdef int get_error_message_rc = get_error_message(
+        cdef int get_error_message_rc = pcre2_get_error_message(
             errorcode, 
             errormsg_buf, sizeof(errormsg_buf)
         )
 
         # Handle errors in fetching error message.
-        if get_error_message_rc == ERROR_NOMEMORY:
+        if get_error_message_rc == PCRE2_ERROR_NOMEMORY:
             raise MemoryError()
         elif get_error_message_rc < 0:
             raise LibraryError(
@@ -63,7 +65,7 @@ class MatchingError(LibraryError):
     """
     
     def __init__(self, errorcode, context_msg=""):
-        if not (errorcode == ERROR_NOMATCH or errorcode == ERROR_PARTIAL):
+        if not (errorcode == PCRE2_ERROR_NOMATCH or errorcode == PCRE2_ERROR_PARTIAL):
             raise ValueError("Match error codes can only be of value ERROR_NOMATCH or ERROR_PARTIAL.")
         
         super().__init__(errorcode, context_msg=context_msg)
@@ -88,7 +90,7 @@ cdef raise_from_rc(int errorcode, object context_msg):
     if errorcode > 0:
         raise CompilationError(errorcode, context_msg)
 
-    elif errorcode == ERROR_NOMATCH or errorcode == ERROR_PARTIAL:
+    elif errorcode == PCRE2_ERROR_NOMATCH or errorcode == PCRE2_ERROR_PARTIAL:
         raise MatchingError(errorcode, context_msg)
 
     else:

@@ -12,9 +12,16 @@ from cpython.unicode cimport PyUnicode_Check
 
 # Local imports.
 from pcre2._libs.libpcre2 cimport (
-    sptr_t, code_t, 
-    compile, code_free, pattern_info,
-    UTF, NO_UTF_CHECK, INFO_NAMECOUNT, INFO_NAMETABLE, INFO_NAMEENTRYSIZE
+    pcre2_sptr_t,
+    pcre2_code_t, 
+    pcre2_compile,
+    pcre2_code_free,
+    pcre2_pattern_info,
+    PCRE2_UTF,
+    PCRE2_NO_UTF_CHECK,
+    PCRE2_INFO_NAMECOUNT,
+    PCRE2_INFO_NAMETABLE,
+    PCRE2_INFO_NAMEENTRYSIZE
 )
 
 from pcre2._utils.strings cimport get_buffer, codeunit_to_codepoint
@@ -47,12 +54,13 @@ cdef class Pattern:
 
         # Ensure unicode strings are processed with UTF-8 support.
         if PyUnicode_Check(self.pattern.obj):
-            self.options = self.options | UTF | NO_UTF_CHECK
+            self.options = self.options | PCRE2_UTF | PCRE2_NO_UTF_CHECK
 
         cdef int compile_rc
         cdef size_t compile_errpos
-        self.code = compile(
-            <sptr_t>self.pattern.buf, <size_t>self.pattern.len,
+        self.code = pcre2_compile(
+            <pcre2_sptr_t>self.pattern.buf,
+            <size_t>self.pattern.len,
             self.options,
             &compile_rc, &compile_errpos,
             NULL
@@ -67,4 +75,4 @@ cdef class Pattern:
 
     def __dealloc__(self):
         PyBuffer_Release(self.pattern)
-        code_free(self.code)
+        pcre2_code_free(self.code)
