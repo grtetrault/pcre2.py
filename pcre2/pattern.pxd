@@ -17,4 +17,4 @@ from pcre2._libs.libpcre2 cimport pcre2_code_t
 cdef class Pattern:
     cdef pcre2_code_t *code
     cdef Py_buffer *pattern
-    cdef readonly object options
+    cdef readonly object flags

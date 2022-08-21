@@ -19,4 +19,4 @@ cdef class Match:
     cdef pcre2_match_data_t *match_data
     cdef Pattern pattern
     cdef Py_buffer *subject
-    cdef readonly object options
+    cdef readonly object flags
