@@ -191,3 +191,83 @@ cdef class Pattern:
     def __dealloc__(self):
         PyBuffer_Release(self.pattern)
         pcre2_code_free(self.code)
+
+
+    # _________________________________________________________________
+    #                                               Pattern information
+
+    @property
+    def all_options(self):
+        """ Returns the compile options as modified by any top-level (*XXX)
+        option settings such as (*UTF) at the start of the pattern itself.
+        """
+        cdef uint32_t all_options
+        pattern_info_rc = pattern_info(self.code, INFO_ALLOPTIONS, &all_options)
+        if pattern_info_rc < 0:
+            raise_from_rc(pattern_info_rc, None)
+        return all_options
+
+    
+    @property
+    def capture_count(self):
+        """ Return the highest capture group number in the pattern. In patterns
+        where (?| is not used, this is also the total number of capture groups.
+        """
+        cdef uint32_t capture_count
+        pattern_info_rc = pattern_info(self.code, INFO_CAPTURECOUNT, &capture_count)
+        if pattern_info_rc < 0:
+            raise_from_rc(pattern_info_rc, None)
+        return capture_count
+
+
+    @property
+    def jit_size(self):
+        """ If the compiled pattern was successfully JIT compiled, return the
+        size of the JIT compiled code, otherwise return zero.
+        """
+        cdef uint32_t jit_size
+        pattern_info_rc = pattern_info(self.code, INFO_JITSIZE, &jit_size)
+        if pattern_info_rc < 0:
+            raise_from_rc(pattern_info_rc, None)
+        return jit_size
+
+
+    # _________________________________________________________________
+    #                                                           Methods
+
+    def name_dict(self):
+        """ Dictionary from capture group index to capture group name.
+        """
+        cdef sptr_t name_table
+        cdef uint32_t name_count
+        cdef uint32_t name_entry_size
+
+        # Safely get relevant information from pattern.
+        pattern_info_rc = pattern_info(self.code, INFO_NAMECOUNT, &name_count)
+        if pattern_info_rc < 0:
+            raise_from_rc(pattern_info_rc, None)
+
+        pattern_info_rc = pattern_info(self.code, INFO_NAMETABLE, &name_table)
+        if pattern_info_rc < 0:
+            raise_from_rc(pattern_info_rc, None)
+
+        pattern_info_rc = pattern_info(self.code, INFO_NAMEENTRYSIZE, &name_entry_size)
+        if pattern_info_rc < 0:
+            raise_from_rc(pattern_info_rc, None)
+
+        # Convert byte table to dictionary.
+        name_dict = {}
+        for offset in range(0, name_count * name_entry_size, name_entry_size):
+            # First two bytes of name table contain index, followed by possibly
+            # unicode byte string.
+            entry_idx = int((name_table[offset] << 8) | name_table[offset + 1])
+            entry_name = name_table[offset + 2:offset + name_entry_size]
+
+            # Clean up entry and convert to unicode as appropriate.
+            entry_name = <bytes>entry_name.strip(b"\x00")
+            if PyUnicode_Check(self.pattern.obj):
+                entry_name = entry_name.decode("utf-8")
+
+            name_dict[entry_idx] = entry_name
+
+        return name_dict
