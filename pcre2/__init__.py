@@ -1,2 +1,2 @@
-from pcre2.core.pattern import Pattern
-from pcre2.core.match import Match
+from pcre2.pattern import Pattern
+from pcre2.match import Match

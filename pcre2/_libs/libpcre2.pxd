@@ -1,91 +1,96 @@
 # -*- coding:utf-8 -*-
 
 # _____________________________________________________________________________
-#                                                                       Imports
+#                                                                      Imports
 
 from libc.stdint cimport uint8_t, uint32_t
 
 # _____________________________________________________________________________
-#                                                                  External API
+#                                                                 External API
 
 cdef extern from "pcre2.h":
+    # The following option bits can be passed to pcre2_compile(),
+    # pcre2_match(), or pcre2_dfa_match(). PCRE2_NO_UTF_CHECK affects only the
+    # function to which it is passed. Put these bits at the most significant
+    # end of the options word so others can be added next to them.
     cdef unsigned int PCRE2_ANCHORED
     cdef unsigned int PCRE2_NO_UTF_CHECK
     cdef unsigned int PCRE2_ENDANCHORED
 
     # The following option bits can be passed only to pcre2_compile(). However,
-    # they may affect compilation, JIT compilation, and/or interpretive execution.
-    # The following tags indicate which:
+    # they may affect compilation, JIT compilation, and/or interpretive
+    # execution. The following tags indicate which:
     # C   alters what is compiled by pcre2_compile()
     # J   alters what is compiled by pcre2_jit_compile()
     # M   is inspected during pcre2_match() execution
     # D   is inspected during pcre2_dfa_match() execution
-    cdef unsigned int PCRE2_ALLOW_EMPTY_CLASS    #  C       
-    cdef unsigned int PCRE2_ALT_BSUX             #  C       
-    cdef unsigned int PCRE2_AUTO_CALLOUT         #  C       
-    cdef unsigned int PCRE2_CASELESS             #  C       
-    cdef unsigned int PCRE2_DOLLAR_ENDONLY       #    J M D 
-    cdef unsigned int PCRE2_DOTALL               #  C       
-    cdef unsigned int PCRE2_DUPNAMES             #  C       
-    cdef unsigned int PCRE2_EXTENDED             #  C       
-    cdef unsigned int PCRE2_FIRSTLINE            #    J M D 
-    cdef unsigned int PCRE2_MATCH_UNSET_BACKREF  #  C J M   
-    cdef unsigned int PCRE2_MULTILINE            #  C       
-    cdef unsigned int PCRE2_NEVER_UCP            #  C       
-    cdef unsigned int PCRE2_NEVER_UTF            #  C       
-    cdef unsigned int PCRE2_NO_AUTO_CAPTURE      #  C       
-    cdef unsigned int PCRE2_NO_AUTO_POSSESS      #  C       
-    cdef unsigned int PCRE2_NO_DOTSTAR_ANCHOR    #  C       
-    cdef unsigned int PCRE2_NO_START_OPTIMIZE    #    J M D 
-    cdef unsigned int PCRE2_UCP                  #  C J M D 
-    cdef unsigned int PCRE2_UNGREEDY             #  C       
-    cdef unsigned int PCRE2_UTF                  #  C J M D 
-    cdef unsigned int PCRE2_NEVER_BACKSLASH_C    #  C       
-    cdef unsigned int PCRE2_ALT_CIRCUMFLEX       #    J M D 
-    cdef unsigned int PCRE2_ALT_VERBNAMES        #  C       
-    cdef unsigned int PCRE2_USE_OFFSET_LIMIT     #    J M D 
-    cdef unsigned int PCRE2_EXTENDED_MORE        #  C       
-    cdef unsigned int PCRE2_LITERAL              #  C       
-    cdef unsigned int PCRE2_MATCH_INVALID_UTF    #    J M D 
+    cdef unsigned int PCRE2_ALLOW_EMPTY_CLASS    # C       
+    cdef unsigned int PCRE2_ALT_BSUX             # C       
+    cdef unsigned int PCRE2_AUTO_CALLOUT         # C       
+    cdef unsigned int PCRE2_CASELESS             # C       
+    cdef unsigned int PCRE2_DOLLAR_ENDONLY       #   J M D 
+    cdef unsigned int PCRE2_DOTALL               # C       
+    cdef unsigned int PCRE2_DUPNAMES             # C       
+    cdef unsigned int PCRE2_EXTENDED             # C       
+    cdef unsigned int PCRE2_FIRSTLINE            #   J M D 
+    cdef unsigned int PCRE2_MATCH_UNSET_BACKREF  # C J M   
+    cdef unsigned int PCRE2_MULTILINE            # C       
+    cdef unsigned int PCRE2_NEVER_UCP            # C       
+    cdef unsigned int PCRE2_NEVER_UTF            # C       
+    cdef unsigned int PCRE2_NO_AUTO_CAPTURE      # C       
+    cdef unsigned int PCRE2_NO_AUTO_POSSESS      # C       
+    cdef unsigned int PCRE2_NO_DOTSTAR_ANCHOR    # C       
+    cdef unsigned int PCRE2_NO_START_OPTIMIZE    #   J M D 
+    cdef unsigned int PCRE2_UCP                  # C J M D 
+    cdef unsigned int PCRE2_UNGREEDY             # C       
+    cdef unsigned int PCRE2_UTF                  # C J M D 
+    cdef unsigned int PCRE2_NEVER_BACKSLASH_C    # C       
+    cdef unsigned int PCRE2_ALT_CIRCUMFLEX       #   J M D 
+    cdef unsigned int PCRE2_ALT_VERBNAMES        # C       
+    cdef unsigned int PCRE2_USE_OFFSET_LIMIT     #   J M D 
+    cdef unsigned int PCRE2_EXTENDED_MORE        # C       
+    cdef unsigned int PCRE2_LITERAL              # C       
+    cdef unsigned int PCRE2_MATCH_INVALID_UTF    #   J M D
 
-    #  An additional compile options word is available in the compile context. 
-    cdef unsigned int PCRE2_EXTRA_ALLOW_SURROGATE_ESCAPES  #  C 
-    cdef unsigned int PCRE2_EXTRA_BAD_ESCAPE_IS_LITERAL    #  C 
-    cdef unsigned int PCRE2_EXTRA_MATCH_WORD               #  C 
-    cdef unsigned int PCRE2_EXTRA_MATCH_LINE               #  C 
-    cdef unsigned int PCRE2_EXTRA_ESCAPED_CR_IS_LF         #  C 
-    cdef unsigned int PCRE2_EXTRA_ALT_BSUX                 #  C 
-    cdef unsigned int PCRE2_EXTRA_ALLOW_LOOKAROUND_BSK     #  C 
+    # An additional compile options word is available in the compile context. 
+    cdef unsigned int PCRE2_EXTRA_ALLOW_SURROGATE_ESCAPES  # C 
+    cdef unsigned int PCRE2_EXTRA_BAD_ESCAPE_IS_LITERAL    # C 
+    cdef unsigned int PCRE2_EXTRA_MATCH_WORD               # C 
+    cdef unsigned int PCRE2_EXTRA_MATCH_LINE               # C 
+    cdef unsigned int PCRE2_EXTRA_ESCAPED_CR_IS_LF         # C 
+    cdef unsigned int PCRE2_EXTRA_ALT_BSUX                 # C 
+    cdef unsigned int PCRE2_EXTRA_ALLOW_LOOKAROUND_BSK     # C 
 
-    #  These are for pcre2_jit_compile(). 
-    cdef unsigned int PCRE2_JIT_COMPLETE  #  For full matching.
+    # These are for pcre2_jit_compile(). 
+    cdef unsigned int PCRE2_JIT_COMPLETE  # For full matching.
     cdef unsigned int PCRE2_JIT_PARTIAL_SOFT
     cdef unsigned int PCRE2_JIT_PARTIAL_HARD
     cdef unsigned int PCRE2_JIT_INVALID_UTF
 
     # These are for pcre2_match(), pcre2_dfa_match(), pcre2_jit_match(), and
-    # pcre2_substitute(). Some are allowed only for one of the functions, and in
-    # these cases it is noted below. Note that PCRE2_ANCHORED, PCRE2_ENDANCHORED and
-    # PCRE2_NO_UTF_CHECK can also be passed to these functions (though
-    # pcre2_jit_match() ignores the latter since it bypasses all sanity checks).
+    # pcre2_substitute(). Some are allowed only for one of the functions, and
+    # in these cases it is noted below. Note that PCRE2_ANCHORED,
+    # PCRE2_ENDANCHORED and PCRE2_NO_UTF_CHECK can also be passed to these
+    # functions (though pcre2_jit_match() ignores the latter since it bypasses
+    # all sanity checks).
     cdef unsigned int PCRE2_NOTBOL
     cdef unsigned int PCRE2_NOTEOL
-    cdef unsigned int PCRE2_NOTEMPTY          #  ) These two must be kept
-    cdef unsigned int PCRE2_NOTEMPTY_ATSTART  #  ) adjacent to each other. 
+    cdef unsigned int PCRE2_NOTEMPTY          # ) These two must be kept
+    cdef unsigned int PCRE2_NOTEMPTY_ATSTART  # ) adjacent to each other. 
     cdef unsigned int PCRE2_PARTIAL_SOFT
     cdef unsigned int PCRE2_PARTIAL_HARD
-    cdef unsigned int PCRE2_DFA_RESTART  #  pcre2_dfa_match() only 
-    cdef unsigned int PCRE2_DFA_SHORTEST  #  pcre2_dfa_match() only 
-    cdef unsigned int PCRE2_SUBSTITUTE_GLOBAL  #  pcre2_substitute() only 
-    cdef unsigned int PCRE2_SUBSTITUTE_EXTENDED  #  pcre2_substitute() only 
-    cdef unsigned int PCRE2_SUBSTITUTE_UNSET_EMPTY  #  pcre2_substitute() only 
-    cdef unsigned int PCRE2_SUBSTITUTE_UNKNOWN_UNSET  #  pcre2_substitute() only 
-    cdef unsigned int PCRE2_SUBSTITUTE_OVERFLOW_LENGTH  #  pcre2_substitute() only 
-    cdef unsigned int PCRE2_NO_JIT  #  Not for pcre2_dfa_match() 
+    cdef unsigned int PCRE2_DFA_RESTART  # pcre2_dfa_match() only 
+    cdef unsigned int PCRE2_DFA_SHORTEST  # pcre2_dfa_match() only 
+    cdef unsigned int PCRE2_SUBSTITUTE_GLOBAL  # pcre2_substitute() only 
+    cdef unsigned int PCRE2_SUBSTITUTE_EXTENDED  # pcre2_substitute() only 
+    cdef unsigned int PCRE2_SUBSTITUTE_UNSET_EMPTY  # pcre2_substitute() only 
+    cdef unsigned int PCRE2_SUBSTITUTE_UNKNOWN_UNSET  # pcre2_substitute() only 
+    cdef unsigned int PCRE2_SUBSTITUTE_OVERFLOW_LENGTH  # pcre2_substitute() only 
+    cdef unsigned int PCRE2_NO_JIT  # Not for pcre2_dfa_match() 
     cdef unsigned int PCRE2_COPY_MATCHED_SUBJECT
-    cdef unsigned int PCRE2_SUBSTITUTE_LITERAL  #  pcre2_substitute() only 
-    cdef unsigned int PCRE2_SUBSTITUTE_MATCHED  #  pcre2_substitute() only 
-    cdef unsigned int PCRE2_SUBSTITUTE_REPLACEMENT_ONLY  #  pcre2_substitute() only 
+    cdef unsigned int PCRE2_SUBSTITUTE_LITERAL  # pcre2_substitute() only 
+    cdef unsigned int PCRE2_SUBSTITUTE_MATCHED  # pcre2_substitute() only 
+    cdef unsigned int PCRE2_SUBSTITUTE_REPLACEMENT_ONLY  # pcre2_substitute() only 
 
     # Options for pcre2_pattern_convert(). 
     cdef unsigned int PCRE2_CONVERT_UTF
@@ -169,7 +174,7 @@ cdef extern from "pcre2.h":
     cdef int PCRE2_ERROR_INTERNAL_UNKNOWN_NEWLINE
     cdef int PCRE2_ERROR_BACKSLASH_G_SYNTAX
     cdef int PCRE2_ERROR_PARENS_QUERY_R_MISSING_CLOSING
-    #  Error 159 is obsolete and should now never occur 
+    # Error 159 is obsolete and should now never occur 
     cdef int PCRE2_ERROR_VERB_ARGUMENT_NOT_ALLOWED
     cdef int PCRE2_ERROR_VERB_UNKNOWN
     cdef int PCRE2_ERROR_SUBPATTERN_NUMBER_TOO_BIG
@@ -212,11 +217,11 @@ cdef extern from "pcre2.h":
     cdef int PCRE2_ERROR_CONDITION_ATOMIC_ASSERTION_EXPECTED
     cdef int PCRE2_ERROR_BACKSLASH_K_IN_LOOKAROUND
 
-    #  "Expected" matching error codes: no match and partial match. 
+    # "Expected" matching error codes: no match and partial match. 
     cdef int PCRE2_ERROR_NOMATCH
     cdef int PCRE2_ERROR_PARTIAL
 
-    #  Error codes for UTF-8 validity checks.
+    # Error codes for UTF-8 validity checks.
     cdef int PCRE2_ERROR_UTF8_ERR1
     cdef int PCRE2_ERROR_UTF8_ERR2
     cdef int PCRE2_ERROR_UTF8_ERR3
@@ -239,28 +244,28 @@ cdef extern from "pcre2.h":
     cdef int PCRE2_ERROR_UTF8_ERR20
     cdef int PCRE2_ERROR_UTF8_ERR21
 
-    #  Error codes for UTF-16 validity checks. 
+    # Error codes for UTF-16 validity checks. 
     cdef int PCRE2_ERROR_UTF16_ERR1
     cdef int PCRE2_ERROR_UTF16_ERR2
     cdef int PCRE2_ERROR_UTF16_ERR3
 
-    #  Error codes for UTF-32 validity checks.
+    # Error codes for UTF-32 validity checks.
     cdef int PCRE2_ERROR_UTF32_ERR1
     cdef int PCRE2_ERROR_UTF32_ERR2
 
     # Miscellaneous error codes for pcre2[_dfa]_match(), substring extraction
-    # functions, context functions, and serializing functions. They are in numerical
-    # order. Originally they were in alphabetical order too, but now that PCRE2 is
-    # released, the numbers must not be changed.
+    # functions, context functions, and serializing functions. They are in
+    # numerical order. Originally they were in alphabetical order too, but now
+    # that PCRE2 is released, the numbers must not be changed.
     cdef int PCRE2_ERROR_BADDATA
-    cdef int PCRE2_ERROR_MIXEDTABLES  #  Name was changed.
+    cdef int PCRE2_ERROR_MIXEDTABLES  # Name was changed.
     cdef int PCRE2_ERROR_BADMAGIC
     cdef int PCRE2_ERROR_BADMODE
     cdef int PCRE2_ERROR_BADOFFSET
     cdef int PCRE2_ERROR_BADOPTION
     cdef int PCRE2_ERROR_BADREPLACEMENT
     cdef int PCRE2_ERROR_BADUTFOFFSET
-    cdef int PCRE2_ERROR_CALLOUT  #  Never used by PCRE2 itself.
+    cdef int PCRE2_ERROR_CALLOUT  # Never used by PCRE2 itself.
     cdef int PCRE2_ERROR_DFA_BADRESTART
     cdef int PCRE2_ERROR_DFA_RECURSE
     cdef int PCRE2_ERROR_DFA_UCOND
@@ -277,7 +282,7 @@ cdef extern from "pcre2.h":
     cdef int PCRE2_ERROR_NULL
     cdef int PCRE2_ERROR_RECURSELOOP
     cdef int PCRE2_ERROR_DEPTHLIMIT
-    cdef int PCRE2_ERROR_RECURSIONLIMIT  #  Obsolete synonym. 
+    cdef int PCRE2_ERROR_RECURSIONLIMIT  # Obsolete synonym. 
     cdef int PCRE2_ERROR_UNAVAILABLE
     cdef int PCRE2_ERROR_UNSET
     cdef int PCRE2_ERROR_BADOFFSETLIMIT
@@ -292,7 +297,7 @@ cdef extern from "pcre2.h":
     cdef int PCRE2_ERROR_INTERNAL_DUPMATCH
     cdef int PCRE2_ERROR_DFA_UINVALID_UTF
 
-    #  Request types for pcre2_pattern_info().
+    # Request types for pcre2_pattern_info().
     cdef int PCRE2_INFO_ALLOPTIONS
     cdef int PCRE2_INFO_ARGOPTIONS
     cdef int PCRE2_INFO_BACKREFMAX
@@ -315,14 +320,14 @@ cdef extern from "pcre2.h":
     cdef int PCRE2_INFO_NAMETABLE
     cdef int PCRE2_INFO_NEWLINE
     cdef int PCRE2_INFO_DEPTHLIMIT
-    cdef int PCRE2_INFO_RECURSIONLIMIT  #  Obsolete synonym 
+    cdef int PCRE2_INFO_RECURSIONLIMIT  # Obsolete synonym 
     cdef int PCRE2_INFO_SIZE
     cdef int PCRE2_INFO_HASBACKSLASHC
     cdef int PCRE2_INFO_FRAMESIZE
     cdef int PCRE2_INFO_HEAPLIMIT
     cdef int PCRE2_INFO_EXTRAOPTIONS
 
-    #  Request types for pcre2_config(). 
+    # Request types for pcre2_config(). 
     cdef int PCRE2_CONFIG_BSR
     cdef int PCRE2_CONFIG_JIT
     cdef int PCRE2_CONFIG_JITTARGET
@@ -331,8 +336,8 @@ cdef extern from "pcre2.h":
     cdef int PCRE2_CONFIG_NEWLINE
     cdef int PCRE2_CONFIG_PARENSLIMIT
     cdef int PCRE2_CONFIG_DEPTHLIMIT
-    cdef int PCRE2_CONFIG_RECURSIONLIMIT  #  Obsolete synonym 
-    cdef int PCRE2_CONFIG_STACKRECURSE  #  Obsolete 
+    cdef int PCRE2_CONFIG_RECURSIONLIMIT  # Obsolete synonym 
+    cdef int PCRE2_CONFIG_STACKRECURSE  # Obsolete 
     cdef int PCRE2_CONFIG_UNICODE
     cdef int PCRE2_CONFIG_UNICODE_VERSION
     cdef int PCRE2_CONFIG_VERSION

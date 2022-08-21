@@ -9,6 +9,8 @@ from libc.stdint cimport uint32_t
 from cpython cimport Py_buffer, PyBuffer_Release
 from cpython.unicode cimport PyUnicode_Check
 
+from enum import Enum, Flag
+
 # Local imports.
 from pcre2._libs.libpcre2 cimport (
     pcre2_sptr_t,
@@ -19,14 +21,69 @@ from pcre2._libs.libpcre2 cimport (
     pcre2_substring_get_byname,
     pcre2_substring_get_bynumber,
     pcre2_substitute,
+
+    PCRE2_NOTBOL,
+    PCRE2_NOTEOL,
+    PCRE2_NOTEMPTY,
+    PCRE2_NOTEMPTY_ATSTART,
+    PCRE2_PARTIAL_SOFT,
+    PCRE2_PARTIAL_HARD,
+    PCRE2_DFA_RESTART,
+    PCRE2_DFA_SHORTEST,
+    PCRE2_SUBSTITUTE_GLOBAL,
+    PCRE2_SUBSTITUTE_EXTENDED,
+    PCRE2_SUBSTITUTE_UNSET_EMPTY,
+    PCRE2_SUBSTITUTE_UNKNOWN_UNSET,
+    PCRE2_SUBSTITUTE_OVERFLOW_LENGTH,
+    PCRE2_NO_JIT,
+    PCRE2_COPY_MATCHED_SUBJECT,
+    PCRE2_SUBSTITUTE_LITERAL,
     PCRE2_SUBSTITUTE_MATCHED,
     PCRE2_SUBSTITUTE_REPLACEMENT_ONLY,
+
     PCRE2_ERROR_UNSET
 )
 
 from pcre2._utils.strings cimport get_buffer
-from pcre2.core.exceptions cimport raise_from_rc
-from pcre2.core.pattern cimport Pattern
+from pcre2.exceptions cimport raise_from_rc
+from pcre2.pattern cimport Pattern
+
+
+
+# _____________________________________________________________________________
+#                                                                     Constants
+
+class MatchFlag(Flag):
+    NONE = 0
+    NOTBOL = PCRE2_NOTBOL
+    NOTEOL = PCRE2_NOTEOL
+    NOTEMPTY = PCRE2_NOTEMPTY
+    NOTEMPTY_ATSTART = PCRE2_NOTEMPTY_ATSTART
+    PARTIAL_SOFT = PCRE2_PARTIAL_SOFT
+    PARTIAL_HARD = PCRE2_PARTIAL_HARD
+    NO_JIT = PCRE2_NO_JIT
+
+
+class ExpandFlag(Flag):
+    NONE = 0
+
+    # Option flags shared with matching.
+    NOTBOL = PCRE2_NOTBOL
+    NOTEOL = PCRE2_NOTEOL
+    NOTEMPTY = PCRE2_NOTEMPTY
+    NOTEMPTY_ATSTART = PCRE2_NOTEMPTY_ATSTART
+    PARTIAL_SOFT = PCRE2_PARTIAL_SOFT
+    PARTIAL_HARD = PCRE2_PARTIAL_HARD
+    NO_JIT = PCRE2_NO_JIT
+
+    # Substitute only flags.
+    GLOBAL = PCRE2_SUBSTITUTE_GLOBAL
+    EXTENDED = PCRE2_SUBSTITUTE_EXTENDED
+    UNSET_EMPTY = PCRE2_SUBSTITUTE_UNSET_EMPTY
+    UNKNOWN_UNSET = PCRE2_SUBSTITUTE_UNKNOWN_UNSET
+    OVERFLOW_LENGTH = PCRE2_SUBSTITUTE_OVERFLOW_LENGTH
+    LITERAL = PCRE2_SUBSTITUTE_LITERAL
+    REPLACEMENT_ONLY = PCRE2_SUBSTITUTE_REPLACEMENT_ONLY
 
 
 # _____________________________________________________________________________
