@@ -129,7 +129,7 @@ cdef class Match:
             <pcre2_sptr_t>self.subject.buf,
             <size_t>self.subject.len,
             0, # Start offset.
-            self.flags,
+            self.flags.value,
             self.match_data,
             NULL
         )
