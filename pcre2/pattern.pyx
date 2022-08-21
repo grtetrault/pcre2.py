@@ -161,6 +161,9 @@ cdef class Pattern:
     #                                    Lifetime and memory management
 
     def __cinit__(self, object pattern, object flags=CompileFlag.NONE):
+        if not isinstance(flags, CompileFlag):
+            raise ValueError("Flags must be of type CompileFlag.")
+
         self.pattern = get_buffer(pattern)
         self.flags = flags
 

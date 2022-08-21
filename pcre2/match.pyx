@@ -97,14 +97,17 @@ cdef class Match:
         match_data:
         pattern: 
         subject:
-        options:
+        flags:
     """
     
 
     # _________________________________________________________________
     #                                    Lifetime and memory management
 
-    def __cinit__(self, Pattern pattern, object subject, uint32_t options=0):
+    def __cinit__(self, Pattern pattern, object subject, object flags=MatchFlag.NONE):
+        if not isinstance(flags, MatchFlag):
+            raise ValueError("Flags must be of type MatchFlag.")
+
         # Only allow for unicode-to-unicode and bytes-to-bytes comparisons.
         if PyUnicode_Check(subject) and not PyUnicode_Check(pattern.pattern.obj):
             raise ValueError("Cannot use a unicode pattern on a bytes-like object.")
@@ -114,7 +117,7 @@ cdef class Match:
 
         self.pattern = pattern
         self.subject = get_buffer(subject)
-        self.options = options
+        self.flags = flags
 
         # Attempt match of pattern onto subject.
         self.match_data = pcre2_match_data_create_from_pattern(self.pattern.code, NULL)
@@ -126,7 +129,7 @@ cdef class Match:
             <pcre2_sptr_t>self.subject.buf,
             <size_t>self.subject.len,
             0, # Start offset.
-            self.options,
+            self.flags,
             self.match_data,
             NULL
         )
