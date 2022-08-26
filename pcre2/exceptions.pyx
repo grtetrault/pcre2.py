@@ -4,18 +4,14 @@
 #                                                                       Imports
 
 # Standard libraries.
-from libc.stdlib cimport malloc, free
-from libc.stdint cimport uint8_t, uint32_t
+from libc.stdint cimport uint8_t
 
 
 # Local imports.
-from pcre2._libs.libpcre2 cimport (
-    pcre2_get_error_message,
-    PCRE2_ERROR_NOMEMORY,
-    PCRE2_ERROR_NOMATCH,
-    PCRE2_ERROR_PARTIAL
+from pcre2._libs.libpcre2 cimport *
+from pcre2._utils.strings cimport (
+    get_buffer, codeunit_to_codepoint
 )
-from pcre2._utils.strings cimport get_buffer
 
 
 # _____________________________________________________________________________

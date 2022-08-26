@@ -4,16 +4,15 @@
 #                                                                       Imports
 
 # Standard libraries.
-from libc.stdlib cimport malloc, free
-from libc.stdint cimport uint8_t, uint32_t
+from libc.stdlib cimport malloc
+from libc.stdint cimport uint8_t
 from cpython cimport Py_buffer
 from cpython.unicode cimport PyUnicode_Check
 from cpython.buffer cimport (
     PyObject_CheckBuffer,
     PyBuffer_IsContiguous,
     PyObject_GetBuffer,
-    PyBuffer_FillInfo,
-    PyBuffer_Release,
+    PyBuffer_FillInfo
 )
 
 cdef extern from "Python.h":

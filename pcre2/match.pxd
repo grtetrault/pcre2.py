@@ -5,10 +5,10 @@
 
 # Standard libraries.
 from cpython cimport Py_buffer
-from libc.stdint cimport uint8_t, uint32_t
+from libc.stdint cimport uint32_t
 
 # Local imports.
-from pcre2._libs.libpcre2 cimport pcre2_match_data_t
+from pcre2._libs.libpcre2 cimport *
 from pcre2.pattern cimport Pattern
 
 
@@ -19,4 +19,4 @@ cdef class Match:
     cdef pcre2_match_data_t *match_data
     cdef Pattern pattern
     cdef Py_buffer *subject
-    cdef readonly object flags
+    cdef readonly uint32_t options

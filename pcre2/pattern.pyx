@@ -4,87 +4,23 @@
 #                                                                       Imports
 
 # Standard libraries.
-from libc.stdlib cimport malloc, free
-from libc.stdint cimport uint8_t, uint32_t
-
-from cpython cimport Py_buffer, PyBuffer_Release
+from enum import IntEnum
+from libc.stdint cimport uint32_t
+from cpython cimport PyBuffer_Release
 from cpython.unicode cimport PyUnicode_Check
 
-from enum import Enum, Flag
-
 # Local imports.
-from pcre2._libs.libpcre2 cimport (
-    pcre2_sptr_t,
-    pcre2_code_t, 
-    pcre2_compile,
-    pcre2_code_free,
-    pcre2_pattern_info,
-
-    PCRE2_ANCHORED,
-    PCRE2_NO_UTF_CHECK,
-    PCRE2_ENDANCHORED,
-    PCRE2_ALLOW_EMPTY_CLASS,
-    PCRE2_ALT_BSUX,
-    PCRE2_AUTO_CALLOUT,
-    PCRE2_CASELESS,
-    PCRE2_DOLLAR_ENDONLY,
-    PCRE2_DOTALL,
-    PCRE2_DUPNAMES,
-    PCRE2_EXTENDED,
-    PCRE2_FIRSTLINE,
-    PCRE2_MATCH_UNSET_BACKREF,
-    PCRE2_MULTILINE,
-    PCRE2_NEVER_UCP,
-    PCRE2_NEVER_UTF,
-    PCRE2_NO_AUTO_CAPTURE,
-    PCRE2_NO_AUTO_POSSESS,
-    PCRE2_NO_DOTSTAR_ANCHOR,
-    PCRE2_NO_START_OPTIMIZE,
-    PCRE2_UCP,
-    PCRE2_UNGREEDY,
-    PCRE2_UTF,
-    PCRE2_NEVER_BACKSLASH_C,
-    PCRE2_ALT_CIRCUMFLEX,
-    PCRE2_ALT_VERBNAMES,
-    PCRE2_USE_OFFSET_LIMIT,
-    PCRE2_EXTENDED_MORE,
-    PCRE2_LITERAL,
-    PCRE2_MATCH_INVALID_UTF,
-
-    PCRE2_NOTBOL,
-    PCRE2_NOTEOL,
-    PCRE2_NOTEMPTY,
-    PCRE2_NOTEMPTY_ATSTART,
-    PCRE2_PARTIAL_SOFT,
-    PCRE2_PARTIAL_HARD,
-    PCRE2_DFA_RESTART,
-    PCRE2_DFA_SHORTEST,
-    PCRE2_SUBSTITUTE_GLOBAL,
-    PCRE2_SUBSTITUTE_EXTENDED,
-    PCRE2_SUBSTITUTE_UNSET_EMPTY,
-    PCRE2_SUBSTITUTE_UNKNOWN_UNSET,
-    PCRE2_SUBSTITUTE_OVERFLOW_LENGTH,
-    PCRE2_NO_JIT,
-    PCRE2_COPY_MATCHED_SUBJECT,
-    PCRE2_SUBSTITUTE_LITERAL,
-    PCRE2_SUBSTITUTE_MATCHED,
-    PCRE2_SUBSTITUTE_REPLACEMENT_ONLY,
-
-    PCRE2_INFO_NAMECOUNT,
-    PCRE2_INFO_NAMETABLE,
-    PCRE2_INFO_NAMEENTRYSIZE
-)
-
-from pcre2._utils.strings cimport get_buffer, codeunit_to_codepoint
+from pcre2._libs.libpcre2 cimport *
 from pcre2.exceptions cimport raise_from_rc
+from pcre2._utils.strings cimport (
+    get_buffer, codeunit_to_codepoint
+)
 
 
 # _____________________________________________________________________________
 #                                                                     Constants
 
-class CompileFlag(Flag):
-    NONE = 0
-
+class CompileOption(IntEnum):
     ANCHORED = PCRE2_ANCHORED
     NO_UTF_CHECK = PCRE2_NO_UTF_CHECK
     ENDANCHORED = PCRE2_ENDANCHORED
@@ -117,9 +53,7 @@ class CompileFlag(Flag):
     MATCH_INVALID_UTF = PCRE2_MATCH_INVALID_UTF
 
 
-class SubstituteFlag(Flag):
-    NONE = 0
-
+class SubstituteOption(IntEnum):
     # Option flags shared with matching.
     NOTBOL = PCRE2_NOTBOL
     NOTEOL = PCRE2_NOTEOL
@@ -139,6 +73,20 @@ class SubstituteFlag(Flag):
     REPLACEMENT_ONLY = PCRE2_SUBSTITUTE_REPLACEMENT_ONLY
 
 
+class BsrEnum(IntEnum):
+    UNICODE = PCRE2_BSR_UNICODE
+    ANYCRLF = PCRE2_BSR_ANYCRLF
+
+
+class NewlineEnum(IntEnum):
+    CR = PCRE2_NEWLINE_CR
+    LF = PCRE2_NEWLINE_LF
+    CRLF = PCRE2_NEWLINE_CRLF
+    ANY = PCRE2_NEWLINE_ANY
+    ANYCRLF = PCRE2_NEWLINE_ANYCRLF
+    NUL = PCRE2_NEWLINE_NUL
+
+
 # _____________________________________________________________________________
 #                                                                 Pattern class
 
@@ -151,7 +99,7 @@ cdef class Pattern:
         Dynamic attributes are enabled for this class.
 
         code: Compiled PCRE2 code.
-        flags: PCRE2 compilation flags.
+        options: PCRE2 compilation options.
         pattern: Buffer containing source pattern expression including byte
             string and a reference to source object.
     """
@@ -160,23 +108,20 @@ cdef class Pattern:
     # _________________________________________________________________
     #                                    Lifetime and memory management
 
-    def __cinit__(self, object pattern, object flags=CompileFlag.NONE):
-        if not isinstance(flags, CompileFlag):
-            raise ValueError("Flags must be of type CompileFlag.")
-
+    def __cinit__(self, object pattern, uint32_t options=0):
         self.pattern = get_buffer(pattern)
-        self.flags = flags
+        self.options = options
 
         # Ensure unicode strings are processed with UTF-8 support.
         if PyUnicode_Check(self.pattern.obj):
-            self.flags = self.flags | CompileFlag.UTF | CompileFlag.NO_UTF_CHECK
+            self.options = self.options | PCRE2_UTF | PCRE2_NO_UTF_CHECK
 
         cdef int compile_rc
         cdef size_t compile_errpos
         self.code = pcre2_compile(
             <pcre2_sptr_t>self.pattern.buf,
             <size_t>self.pattern.len,
-            self.flags.value,
+            self.options,
             &compile_rc, &compile_errpos,
             NULL
         )
@@ -202,23 +147,41 @@ cdef class Pattern:
         option settings such as (*UTF) at the start of the pattern itself.
         """
         cdef uint32_t all_options
-        pattern_info_rc = pattern_info(self.code, INFO_ALLOPTIONS, &all_options)
+        cdef int pattern_info_rc
+        pattern_info_rc = pcre2_pattern_info(self.code, PCRE2_INFO_ALLOPTIONS, &all_options)
         if pattern_info_rc < 0:
             raise_from_rc(pattern_info_rc, None)
         return all_options
 
-    
+    @property
+    def backslash_r(self):
+        """ Return an indicator to what character sequences the \R escape
+        sequence matches.
+        """
+        cdef uint32_t bsr
+        cdef int pattern_info_rc
+        pattern_info_rc = pcre2_pattern_info(self.code, PCRE2_INFO_BSR, &bsr)
+        if pattern_info_rc < 0:
+            raise_from_rc(pattern_info_rc, None)
+
+        if bsr == PCRE2_BSR_UNICODE:
+            return BsrEnum.UNICODE
+        elif bsr == PCRE2_BSR_ANYCRLF:
+            return BsrEnum.ANYCRLF
+        else:
+            return None
+
     @property
     def capture_count(self):
         """ Return the highest capture group number in the pattern. In patterns
         where (?| is not used, this is also the total number of capture groups.
         """
         cdef uint32_t capture_count
-        pattern_info_rc = pattern_info(self.code, INFO_CAPTURECOUNT, &capture_count)
+        cdef int pattern_info_rc
+        pattern_info_rc = pcre2_pattern_info(self.code, PCRE2_INFO_CAPTURECOUNT, &capture_count)
         if pattern_info_rc < 0:
             raise_from_rc(pattern_info_rc, None)
         return capture_count
-
 
     @property
     def jit_size(self):
@@ -226,10 +189,35 @@ cdef class Pattern:
         size of the JIT compiled code, otherwise return zero.
         """
         cdef uint32_t jit_size
-        pattern_info_rc = pattern_info(self.code, INFO_JITSIZE, &jit_size)
+        cdef int pattern_info_rc
+        pattern_info_rc = pcre2_pattern_info(self.code, PCRE2_INFO_JITSIZE, &jit_size)
         if pattern_info_rc < 0:
             raise_from_rc(pattern_info_rc, None)
         return jit_size
+
+    @property
+    def newline(self):
+        """ If the compiled pattern was successfully JIT compiled, return the
+        size of the JIT compiled code, otherwise return zero.
+        """
+        cdef uint32_t newline
+        cdef int pattern_info_rc
+        pattern_info_rc = pcre2_pattern_info(self.code, PCRE2_INFO_NEWLINE, &newline)
+        
+        if newline == PCRE2_NEWLINE_CR:
+            return NewlineEnum.CR
+        elif newline == PCRE2_NEWLINE_LF:
+            return  NewlineEnum.LF
+        elif newline == PCRE2_NEWLINE_CRLF:
+            return  NewlineEnum.CRLF
+        elif newline == PCRE2_NEWLINE_ANY:
+            return  NewlineEnum.ANY
+        elif newline == PCRE2_NEWLINE_ANYCRLF:
+            return  NewlineEnum.ANYCRLF
+        elif newline == PCRE2_NEWLINE_NUL:
+            return  NewlineEnum.NUL
+        else:
+            return None
 
 
     # _________________________________________________________________
@@ -238,20 +226,21 @@ cdef class Pattern:
     def name_dict(self):
         """ Dictionary from capture group index to capture group name.
         """
-        cdef sptr_t name_table
+        cdef pcre2_sptr_t name_table
         cdef uint32_t name_count
         cdef uint32_t name_entry_size
+        cdef int pattern_info_rc
 
         # Safely get relevant information from pattern.
-        pattern_info_rc = pattern_info(self.code, INFO_NAMECOUNT, &name_count)
+        pattern_info_rc = pcre2_pattern_info(self.code, PCRE2_INFO_NAMECOUNT, &name_count)
         if pattern_info_rc < 0:
             raise_from_rc(pattern_info_rc, None)
 
-        pattern_info_rc = pattern_info(self.code, INFO_NAMETABLE, &name_table)
+        pattern_info_rc = pcre2_pattern_info(self.code, PCRE2_INFO_NAMETABLE, &name_table)
         if pattern_info_rc < 0:
             raise_from_rc(pattern_info_rc, None)
 
-        pattern_info_rc = pattern_info(self.code, INFO_NAMEENTRYSIZE, &name_entry_size)
+        pattern_info_rc = pcre2_pattern_info(self.code, PCRE2_INFO_NAMEENTRYSIZE, &name_entry_size)
         if pattern_info_rc < 0:
             raise_from_rc(pattern_info_rc, None)
 
