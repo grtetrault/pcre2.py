@@ -32,6 +32,27 @@ class MatchOption(IntEnum):
     NO_JIT = PCRE2_NO_JIT
 
 
+    @classmethod
+    def verify(cls, options):
+        """ Verify a number is composed of match options.
+        """
+        tmp = options
+        for opt in cls:
+            tmp ^= (opt & tmp)
+        return tmp == 0
+
+
+    @classmethod
+    def decompose(cls, options):
+        """ Decompose a number into its components match options.
+
+        Return a list of CompileOption enums that are components of the given
+        optins. Note that left over bits are ignored, and veracity can not be
+        determined from the result.
+        """
+        return [opt for opt in cls if (opt & options)]
+
+
 class ExpandOption(IntEnum):
     # Options shared with matching.
     NOTBOL = PCRE2_NOTBOL
@@ -50,6 +71,27 @@ class ExpandOption(IntEnum):
     OVERFLOW_LENGTH = PCRE2_SUBSTITUTE_OVERFLOW_LENGTH
     LITERAL = PCRE2_SUBSTITUTE_LITERAL
     REPLACEMENT_ONLY = PCRE2_SUBSTITUTE_REPLACEMENT_ONLY
+
+
+    @classmethod
+    def verify(cls, options):
+        """ Verify a number is composed of expand options.
+        """
+        tmp = options
+        for opt in cls:
+            tmp ^= (opt & tmp)
+        return tmp == 0
+
+
+    @classmethod
+    def decompose(cls, options):
+        """ Decompose a number into its components expand options.
+
+        Return a list of CompileOption enums that are components of the given
+        optins. Note that left over bits are ignored, and veracity can not be
+        determined from the result.
+        """
+        return [opt for opt in cls if (opt & options)]
 
 
 # _____________________________________________________________________________

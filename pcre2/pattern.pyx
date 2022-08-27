@@ -53,6 +53,27 @@ class CompileOption(IntEnum):
     MATCH_INVALID_UTF = PCRE2_MATCH_INVALID_UTF
 
 
+    @classmethod
+    def verify(cls, options):
+        """ Verify a number is composed of compile options.
+        """
+        tmp = options
+        for opt in cls:
+            tmp ^= (opt & tmp)
+        return tmp == 0
+
+
+    @classmethod
+    def decompose(cls, options):
+        """ Decompose a number into its components compile options.
+
+        Return a list of CompileOption enums that are components of the given
+        optins. Note that left over bits are ignored, and veracity can not be
+        determined from the result.
+        """
+        return [opt for opt in cls if (opt & options)]
+
+
 class SubstituteOption(IntEnum):
     # Option flags shared with matching.
     NOTBOL = PCRE2_NOTBOL
@@ -71,6 +92,27 @@ class SubstituteOption(IntEnum):
     OVERFLOW_LENGTH = PCRE2_SUBSTITUTE_OVERFLOW_LENGTH
     LITERAL = PCRE2_SUBSTITUTE_LITERAL
     REPLACEMENT_ONLY = PCRE2_SUBSTITUTE_REPLACEMENT_ONLY
+
+
+    @classmethod
+    def verify(cls, options):
+        """ Verify a number is composed of substitute options.
+        """
+        tmp = options
+        for opt in cls:
+            tmp ^= (opt & tmp)
+        return tmp == 0
+
+
+    @classmethod
+    def decompose(cls, options):
+        """ Decompose a number into its components substitute options.
+
+        Return a list of CompileOption enums that are components of the given
+        optins. Note that left over bits are ignored, and veracity can not be
+        determined from the result.
+        """
+        return [opt for opt in cls if (opt & options)]
 
 
 class BsrEnum(IntEnum):
@@ -146,8 +188,8 @@ cdef class Pattern:
         """ Returns the compile options as modified by any top-level (*XXX)
         option settings such as (*UTF) at the start of the pattern itself.
         """
-        cdef uint32_t all_options
         cdef int pattern_info_rc
+        cdef uint32_t all_options
         pattern_info_rc = pcre2_pattern_info(self.code, PCRE2_INFO_ALLOPTIONS, &all_options)
         if pattern_info_rc < 0:
             raise_from_rc(pattern_info_rc, None)
@@ -158,8 +200,8 @@ cdef class Pattern:
         """ Return an indicator to what character sequences the \R escape
         sequence matches.
         """
-        cdef uint32_t bsr
         cdef int pattern_info_rc
+        cdef uint32_t bsr
         pattern_info_rc = pcre2_pattern_info(self.code, PCRE2_INFO_BSR, &bsr)
         if pattern_info_rc < 0:
             raise_from_rc(pattern_info_rc, None)
@@ -176,8 +218,8 @@ cdef class Pattern:
         """ Return the highest capture group number in the pattern. In patterns
         where (?| is not used, this is also the total number of capture groups.
         """
-        cdef uint32_t capture_count
         cdef int pattern_info_rc
+        cdef uint32_t capture_count
         pattern_info_rc = pcre2_pattern_info(self.code, PCRE2_INFO_CAPTURECOUNT, &capture_count)
         if pattern_info_rc < 0:
             raise_from_rc(pattern_info_rc, None)
@@ -188,8 +230,8 @@ cdef class Pattern:
         """ If the compiled pattern was successfully JIT compiled, return the
         size of the JIT compiled code, otherwise return zero.
         """
-        cdef uint32_t jit_size
         cdef int pattern_info_rc
+        cdef uint32_t jit_size
         pattern_info_rc = pcre2_pattern_info(self.code, PCRE2_INFO_JITSIZE, &jit_size)
         if pattern_info_rc < 0:
             raise_from_rc(pattern_info_rc, None)
@@ -200,8 +242,8 @@ cdef class Pattern:
         """ If the compiled pattern was successfully JIT compiled, return the
         size of the JIT compiled code, otherwise return zero.
         """
-        cdef uint32_t newline
         cdef int pattern_info_rc
+        cdef uint32_t newline
         pattern_info_rc = pcre2_pattern_info(self.code, PCRE2_INFO_NEWLINE, &newline)
         
         if newline == PCRE2_NEWLINE_CR:
@@ -226,34 +268,37 @@ cdef class Pattern:
     def name_dict(self):
         """ Dictionary from capture group index to capture group name.
         """
-        cdef pcre2_sptr_t name_table
-        cdef uint32_t name_count
-        cdef uint32_t name_entry_size
+        # Safely get relevant information from pattern.
         cdef int pattern_info_rc
 
-        # Safely get relevant information from pattern.
+        cdef uint32_t name_count
         pattern_info_rc = pcre2_pattern_info(self.code, PCRE2_INFO_NAMECOUNT, &name_count)
         if pattern_info_rc < 0:
             raise_from_rc(pattern_info_rc, None)
 
+        cdef pcre2_sptr_t name_table
         pattern_info_rc = pcre2_pattern_info(self.code, PCRE2_INFO_NAMETABLE, &name_table)
         if pattern_info_rc < 0:
             raise_from_rc(pattern_info_rc, None)
 
+        cdef uint32_t name_entry_size
         pattern_info_rc = pcre2_pattern_info(self.code, PCRE2_INFO_NAMEENTRYSIZE, &name_entry_size)
         if pattern_info_rc < 0:
             raise_from_rc(pattern_info_rc, None)
 
         # Convert byte table to dictionary.
+        cdef uint32_t i
+        cdef uint32_t offset
         name_dict = {}
-        for offset in range(0, name_count * name_entry_size, name_entry_size):
+        for i in range(name_count):
+            offset = i * name_entry_size
             # First two bytes of name table contain index, followed by possibly
             # unicode byte string.
             entry_idx = int((name_table[offset] << 8) | name_table[offset + 1])
             entry_name = name_table[offset + 2:offset + name_entry_size]
 
             # Clean up entry and convert to unicode as appropriate.
-            entry_name = <bytes>entry_name.strip(b"\x00")
+            entry_name = entry_name.strip(b"\x00")
             if PyUnicode_Check(self.pattern.obj):
                 entry_name = entry_name.decode("utf-8")
 
