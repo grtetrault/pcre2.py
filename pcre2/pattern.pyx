@@ -303,6 +303,18 @@ cdef class Pattern:
         if pattern_info_rc < 0:
             raise_from_rc(pattern_info_rc, None)
         return jit_size
+    
+
+    @property
+    def name_count(self):
+        """ Returns the number of named capture groups.
+        """
+        cdef int pattern_info_rc
+        cdef uint32_t name_count
+        pattern_info_rc = pcre2_pattern_info(self.code, PCRE2_INFO_NAMECOUNT, &name_count)
+        if pattern_info_rc < 0:
+            raise_from_rc(pattern_info_rc, None)
+        return name_count
 
 
     @property
