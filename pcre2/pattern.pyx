@@ -207,6 +207,13 @@ cdef class Pattern:
 
 
     @property
+    def pattern(self):
+        """ Return the pattern the object was compiled with.
+        """
+        return self.pattern.obj
+
+
+    @property
     def all_options(self):
         """ Returns the compile options as modified by any top-level (*XXX)
         option settings such as (*UTF) at the start of the pattern itself.
@@ -374,3 +381,10 @@ cdef class Pattern:
 
     # _________________________________________________________________
     #                                                           Methods
+
+    def jit_compile(self, args):
+        pass
+
+
+    def substitute(self, args):
+        pass
