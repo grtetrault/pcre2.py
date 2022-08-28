@@ -313,17 +313,12 @@ cdef class Pattern:
         cdef int pattern_info_rc
 
         cdef uint32_t name_count
-        pattern_info_rc = pcre2_pattern_info(self.code, PCRE2_INFO_NAMECOUNT, &name_count)
-        if pattern_info_rc < 0:
-            raise_from_rc(pattern_info_rc, None)
+        cdef uint32_t name_entry_size
+        name_count = self._pcre2_pattern_info_uint(PCRE2_INFO_NAMECOUNT)
+        name_entry_size = self._pcre2_pattern_info_uint(PCRE2_INFO_NAMEENTRYSIZE)
 
         cdef pcre2_sptr_t name_table
         pattern_info_rc = pcre2_pattern_info(self.code, PCRE2_INFO_NAMETABLE, &name_table)
-        if pattern_info_rc < 0:
-            raise_from_rc(pattern_info_rc, None)
-
-        cdef uint32_t name_entry_size
-        pattern_info_rc = pcre2_pattern_info(self.code, PCRE2_INFO_NAMEENTRYSIZE, &name_entry_size)
         if pattern_info_rc < 0:
             raise_from_rc(pattern_info_rc, None)
 
