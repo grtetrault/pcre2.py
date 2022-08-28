@@ -280,6 +280,40 @@ cdef class Pattern:
     
 
     @property
+    def match_empty(self):
+        """ Return True if the pattern might match an empty string, otherwise
+        False.
+        """
+        return self._pcre2_pattern_info_bint(PCRE2_INFO_MATCHEMPTY)
+
+
+    @property
+    def match_limit(self):
+        """ If the pattern set a match limit by including an item of the form
+        (*LIMIT_MATCH=nnnn) at the start, the value is returned. 
+        """
+        return self._pcre2_pattern_info_uint(PCRE2_INFO_MATCHLIMIT)
+
+
+    @property
+    def max_lookbehind(self):
+        """ A lookbehind assertion moves back a certain number of characters
+        (not code units) when it starts to process each of its branches. This
+        request returns the largest of these backward moves.
+        """
+        return self._pcre2_pattern_info_uint(PCRE2_INFO_MAXLOOKBEHIND)
+
+
+    @property
+    def min_length(self):
+        """ If a minimum length for matching subject strings was computed, its
+        value is returned. Otherwise the returned value is 0. This value is not
+        computed when CompileOption.NO_START_OPTIMIZE is set.
+        """
+        return self._pcre2_pattern_info_uint(PCRE2_INFO_MINLENGTH)
+
+    
+    @property
     def name_count(self):
         """ Returns the number of named capture groups.
         """
@@ -309,9 +343,7 @@ cdef class Pattern:
     def name_dict(self):
         """ Dictionary from capture group index to capture group name.
         """
-        # Safely get relevant information from pattern.
-        cdef int pattern_info_rc
-
+        # Get name table related information.
         cdef uint32_t name_count
         cdef uint32_t name_entry_size
         name_count = self._pcre2_pattern_info_uint(PCRE2_INFO_NAMECOUNT)
