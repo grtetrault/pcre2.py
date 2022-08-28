@@ -115,12 +115,12 @@ class SubstituteOption(IntEnum):
         return [opt for opt in cls if (opt & options)]
 
 
-class BsrEnum(IntEnum):
+class BsrChar(IntEnum):
     UNICODE = PCRE2_BSR_UNICODE
     ANYCRLF = PCRE2_BSR_ANYCRLF
 
 
-class NewlineEnum(IntEnum):
+class NewlineChar(IntEnum):
     CR = PCRE2_NEWLINE_CR
     LF = PCRE2_NEWLINE_LF
     CRLF = PCRE2_NEWLINE_CRLF
@@ -183,6 +183,16 @@ cdef class Pattern:
     # _________________________________________________________________
     #                                               Pattern information
 
+    cdef uint32_t _pcre2_pattern_info_uint(uint32_t what):
+        """ Safely access pattern info returned as uint32_t. 
+        """
+        cdef int pattern_info_rc
+        cdef uint32_t where
+        pattern_info_rc = pcre2_pattern_info(self.code, what, &where)
+        if pattern_info_rc < 0:
+            raise_from_rc(pattern_info_rc, None)
+        return where
+
     @property
     def all_options(self):
         """ Returns the compile options as modified by any top-level (*XXX)
@@ -193,7 +203,7 @@ cdef class Pattern:
         pattern_info_rc = pcre2_pattern_info(self.code, PCRE2_INFO_ALLOPTIONS, &all_options)
         if pattern_info_rc < 0:
             raise_from_rc(pattern_info_rc, None)
-        return all_options
+        return _pcre2_pattern_info_uint(PCRE2_INFO_ALLOPTIONS)
 
 
     @property
@@ -220,9 +230,9 @@ cdef class Pattern:
             raise_from_rc(pattern_info_rc, None)
 
         if bsr == PCRE2_BSR_UNICODE:
-            return BsrEnum.UNICODE
+            return BsrChar.UNICODE
         elif bsr == PCRE2_BSR_ANYCRLF:
-            return BsrEnum.ANYCRLF
+            return BsrChar.ANYCRLF
         else:
             return None
 
@@ -267,7 +277,7 @@ cdef class Pattern:
 
 
     @property
-    def has_cr_or_lf(self):
+    def has_crorlf(self):
         """ Return True if the pattern contains any explicit matches for CR or
         LF characters, otherwise False. 
         """
@@ -319,25 +329,25 @@ cdef class Pattern:
 
     @property
     def newline(self):
-        """ If the compiled pattern was successfully JIT compiled, return the
-        size of the JIT compiled code, otherwise return zero.
+        """ Returns the type of character sequence that will be recognized as 
+        meaning "newline" while matching.
         """
         cdef int pattern_info_rc
         cdef uint32_t newline
         pattern_info_rc = pcre2_pattern_info(self.code, PCRE2_INFO_NEWLINE, &newline)
         
         if newline == PCRE2_NEWLINE_CR:
-            return NewlineEnum.CR
+            return NewlineChar.CR
         elif newline == PCRE2_NEWLINE_LF:
-            return  NewlineEnum.LF
+            return  NewlineChar.LF
         elif newline == PCRE2_NEWLINE_CRLF:
-            return  NewlineEnum.CRLF
+            return  NewlineChar.CRLF
         elif newline == PCRE2_NEWLINE_ANY:
-            return  NewlineEnum.ANY
+            return  NewlineChar.ANY
         elif newline == PCRE2_NEWLINE_ANYCRLF:
-            return  NewlineEnum.ANYCRLF
+            return  NewlineChar.ANYCRLF
         elif newline == PCRE2_NEWLINE_NUL:
-            return  NewlineEnum.NUL
+            return  NewlineChar.NUL
         else:
             return None
 
