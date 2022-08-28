@@ -337,9 +337,6 @@ cdef class Pattern:
         return self._pcre2_pattern_info_uint(PCRE2_INFO_SIZE)
 
 
-    # _________________________________________________________________
-    #                                                           Methods
-
     def name_dict(self):
         """ Dictionary from capture group index to capture group name.
         """
@@ -373,3 +370,7 @@ cdef class Pattern:
             name_dict[entry_idx] = entry_name
 
         return name_dict
+
+
+    # _________________________________________________________________
+    #                                                           Methods
