@@ -183,7 +183,8 @@ cdef class Pattern:
     # _________________________________________________________________
     #                                               Pattern information
 
-    cdef uint32_t _pcre2_pattern_info_uint(uint32_t what):
+
+    cdef uint32_t _pcre2_pattern_info_uint(self, uint32_t what):
         """ Safely access pattern info returned as uint32_t. 
         """
         cdef int pattern_info_rc
@@ -193,29 +194,31 @@ cdef class Pattern:
             raise_from_rc(pattern_info_rc, None)
         return where
 
+
+    cdef bint _pcre2_pattern_info_bint(self, uint32_t what):
+        """ Safely access pattern info returned as bint. 
+        """
+        cdef int pattern_info_rc
+        cdef bint where
+        pattern_info_rc = pcre2_pattern_info(self.code, what, &where)
+        if pattern_info_rc < 0:
+            raise_from_rc(pattern_info_rc, None)
+        return where
+
+
     @property
     def all_options(self):
         """ Returns the compile options as modified by any top-level (*XXX)
         option settings such as (*UTF) at the start of the pattern itself.
         """
-        cdef int pattern_info_rc
-        cdef uint32_t all_options
-        pattern_info_rc = pcre2_pattern_info(self.code, PCRE2_INFO_ALLOPTIONS, &all_options)
-        if pattern_info_rc < 0:
-            raise_from_rc(pattern_info_rc, None)
-        return _pcre2_pattern_info_uint(PCRE2_INFO_ALLOPTIONS)
+        return self._pcre2_pattern_info_uint(PCRE2_INFO_ALLOPTIONS)
 
 
     @property
     def backref_max(self):
         """ Return the number of the highest backreference in the pattern.
         """
-        cdef int pattern_info_rc
-        cdef uint32_t backref_max
-        pattern_info_rc = pcre2_pattern_info(self.code, PCRE2_INFO_BACKREFMAX, &backref_max)
-        if pattern_info_rc < 0:
-            raise_from_rc(pattern_info_rc, None)
-        return backref_max
+        return self._pcre2_pattern_info_uint(PCRE2_INFO_BACKREFMAX)
 
 
     @property
@@ -223,18 +226,9 @@ cdef class Pattern:
         """ Return an indicator to what character sequences the \R escape
         sequence matches.
         """
-        cdef int pattern_info_rc
         cdef uint32_t bsr
-        pattern_info_rc = pcre2_pattern_info(self.code, PCRE2_INFO_BSR, &bsr)
-        if pattern_info_rc < 0:
-            raise_from_rc(pattern_info_rc, None)
-
-        if bsr == PCRE2_BSR_UNICODE:
-            return BsrChar.UNICODE
-        elif bsr == PCRE2_BSR_ANYCRLF:
-            return BsrChar.ANYCRLF
-        else:
-            return None
+        bsr = self._pcre2_pattern_info_uint(PCRE2_INFO_BSR)
+        return BsrChar(bsr)
 
 
     @property
@@ -242,12 +236,7 @@ cdef class Pattern:
         """ Return the highest capture group number in the pattern. In patterns
         where (?| is not used, this is also the total number of capture groups.
         """
-        cdef int pattern_info_rc
-        cdef uint32_t capture_count
-        pattern_info_rc = pcre2_pattern_info(self.code, PCRE2_INFO_CAPTURECOUNT, &capture_count)
-        if pattern_info_rc < 0:
-            raise_from_rc(pattern_info_rc, None)
-        return capture_count
+        return self._pcre2_pattern_info_uint(PCRE2_INFO_CAPTURECOUNT)
 
 
     @property
@@ -255,12 +244,7 @@ cdef class Pattern:
         """ If the pattern set a backtracking depth limit by including an item
         of the form (*LIMIT_DEPTH=nnnn) at the start, the value is returned. 
         """
-        cdef int pattern_info_rc
-        cdef uint32_t depth_limit
-        pattern_info_rc = pcre2_pattern_info(self.code, PCRE2_INFO_DEPTHLIMIT, &depth_limit)
-        if pattern_info_rc < 0:
-            raise_from_rc(pattern_info_rc, None)
-        return depth_limit
+        return self._pcre2_pattern_info_uint(PCRE2_INFO_DEPTHLIMIT)
 
 
     @property
@@ -268,12 +252,7 @@ cdef class Pattern:
         """ Return True if the pattern contains any instances of \C, otherwise
         False. 
         """
-        cdef int pattern_info_rc
-        cdef bint has_blackslash_c
-        pattern_info_rc = pcre2_pattern_info(self.code, PCRE2_INFO_HASBACKSLASHC, &has_blackslash_c)
-        if pattern_info_rc < 0:
-            raise_from_rc(pattern_info_rc, None)
-        return has_blackslash_c
+        return self._pcre2_pattern_info_bint(PCRE2_INFO_HASBACKSLASHC)
 
 
     @property
@@ -281,12 +260,7 @@ cdef class Pattern:
         """ Return True if the pattern contains any explicit matches for CR or
         LF characters, otherwise False. 
         """
-        cdef int pattern_info_rc
-        cdef bint has_cr_or_lf
-        pattern_info_rc = pcre2_pattern_info(self.code, PCRE2_INFO_HASCRORLF, &has_cr_or_lf)
-        if pattern_info_rc < 0:
-            raise_from_rc(pattern_info_rc, None)
-        return has_cr_or_lf
+        return self._pcre2_pattern_info_bint(PCRE2_INFO_HASCRORLF)
 
 
     @property
@@ -294,12 +268,7 @@ cdef class Pattern:
         """ Return True if the (?J) or (?-J) option setting is used in the
         pattern, otherwise False. 
         """
-        cdef int pattern_info_rc
-        cdef bint j_changed
-        pattern_info_rc = pcre2_pattern_info(self.code, PCRE2_INFO_JCHANGED, &j_changed)
-        if pattern_info_rc < 0:
-            raise_from_rc(pattern_info_rc, None)
-        return j_changed
+        return self._pcre2_pattern_info_bint(PCRE2_INFO_JCHANGED)
 
 
     @property
@@ -307,24 +276,14 @@ cdef class Pattern:
         """ If the compiled pattern was successfully JIT compiled, return the
         size of the JIT compiled code, otherwise return zero.
         """
-        cdef int pattern_info_rc
-        cdef uint32_t jit_size
-        pattern_info_rc = pcre2_pattern_info(self.code, PCRE2_INFO_JITSIZE, &jit_size)
-        if pattern_info_rc < 0:
-            raise_from_rc(pattern_info_rc, None)
-        return jit_size
+        return self._pcre2_pattern_info_uint(PCRE2_INFO_JITSIZE)
     
 
     @property
     def name_count(self):
         """ Returns the number of named capture groups.
         """
-        cdef int pattern_info_rc
-        cdef uint32_t name_count
-        pattern_info_rc = pcre2_pattern_info(self.code, PCRE2_INFO_NAMECOUNT, &name_count)
-        if pattern_info_rc < 0:
-            raise_from_rc(pattern_info_rc, None)
-        return name_count
+        return self._pcre2_pattern_info_uint(PCRE2_INFO_NAMECOUNT)
 
 
     @property
@@ -332,36 +291,16 @@ cdef class Pattern:
         """ Returns the type of character sequence that will be recognized as 
         meaning "newline" while matching.
         """
-        cdef int pattern_info_rc
         cdef uint32_t newline
-        pattern_info_rc = pcre2_pattern_info(self.code, PCRE2_INFO_NEWLINE, &newline)
-        
-        if newline == PCRE2_NEWLINE_CR:
-            return NewlineChar.CR
-        elif newline == PCRE2_NEWLINE_LF:
-            return  NewlineChar.LF
-        elif newline == PCRE2_NEWLINE_CRLF:
-            return  NewlineChar.CRLF
-        elif newline == PCRE2_NEWLINE_ANY:
-            return  NewlineChar.ANY
-        elif newline == PCRE2_NEWLINE_ANYCRLF:
-            return  NewlineChar.ANYCRLF
-        elif newline == PCRE2_NEWLINE_NUL:
-            return  NewlineChar.NUL
-        else:
-            return None
+        newline = self._pcre2_pattern_info_uint(PCRE2_INFO_NEWLINE)
+        return NewlineChar(newline)
 
 
     @property
     def size(self):
         """ Return the size of the compiled pattern in bytes.
         """
-        cdef int pattern_info_rc
-        cdef uint32_t size
-        pattern_info_rc = pcre2_pattern_info(self.code, PCRE2_INFO_SIZE, &size)
-        if pattern_info_rc < 0:
-            raise_from_rc(pattern_info_rc, None)
-        return size
+        return self._pcre2_pattern_info_uint(PCRE2_INFO_SIZE)
 
 
     # _________________________________________________________________

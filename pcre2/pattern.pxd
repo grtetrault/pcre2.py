@@ -18,3 +18,6 @@ cdef class Pattern:
     cdef pcre2_code_t *code
     cdef Py_buffer *pattern
     cdef readonly uint32_t options
+
+    cdef uint32_t _pcre2_pattern_info_uint(self, uint32_t what)
+    cdef bint _pcre2_pattern_info_bint(self, uint32_t what)
