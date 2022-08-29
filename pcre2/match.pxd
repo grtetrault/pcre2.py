@@ -19,4 +19,12 @@ cdef class Match:
     cdef pcre2_match_data_t *match_data
     cdef Pattern pattern
     cdef Py_buffer *subject
-    cdef readonly uint32_t options
+    cdef uint32_t options
+
+    @staticmethod
+    cdef Match _from_data(
+        pcre2_match_data_t *match_data,
+        Pattern pattern,
+        Py_buffer *subject,
+        uint32_t options
+    )

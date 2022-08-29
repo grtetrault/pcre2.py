@@ -6,6 +6,7 @@
 # Standard libraries.
 from enum import IntEnum
 from libc.stdint cimport uint32_t
+from libc.stdlib cimport malloc, free
 from cpython cimport PyBuffer_Release
 from cpython.unicode cimport PyUnicode_Check
 
@@ -96,6 +97,7 @@ class ExpandOption(IntEnum):
 
 # _____________________________________________________________________________
 #                                                                   Match class
+
 cdef class Match:
     """
 
@@ -112,36 +114,43 @@ cdef class Match:
     # _________________________________________________________________
     #                                    Lifetime and memory management
 
-    def __cinit__(self, Pattern pattern, object subject, uint32_t options=0):
-        # Only allow for unicode-to-unicode and bytes-to-bytes comparisons.
-        if PyUnicode_Check(subject) and not PyUnicode_Check(pattern.pattern.obj):
-            raise ValueError("Cannot use a unicode pattern on a bytes-like object.")
+    def __cinit__(self):
+        self.match_data = NULL
+        self.pattern = None
+        self.subject = NULL
+        self.options = 0
 
-        elif not PyUnicode_Check(subject) and PyUnicode_Check(pattern.pattern.obj):
-            raise ValueError("Cannot use a bytes-like pattern on a unicode object.")
 
-        self.pattern = pattern
-        self.subject = get_buffer(subject)
-        self.options = options
-
-        # Attempt match of pattern onto subject.
-        self.match_data = pcre2_match_data_create_from_pattern(self.pattern.code, NULL)
-        if not self.match_data:
-            raise MemoryError()
-        
-        cdef int match_rc = pcre2_match(
-            self.pattern.code,
-            <pcre2_sptr_t>self.subject.buf,
-            <size_t>self.subject.len,
-            0, # Start offset.
-            self.options,
-            self.match_data,
-            NULL
-        )
-        if match_rc < 0:
-            raise_from_rc(match_rc, None)
+    def __init__(self, *args, **kwargs):
+        # Prevent accidental instantiation from normal Python code since we
+        # cannot pass a struct pointer into a Python constructor.
+        module = self.__class__.__module__
+        qualname = self.__class__.__qualname__
+        raise TypeError(f"Cannot create '{module}.{qualname}' instances.")
 
 
     def __dealloc__(self):
-        PyBuffer_Release(self.subject)
-        pcre2_match_data_free(self.match_data)
+        if self.subject is not NULL:
+            PyBuffer_Release(self.subject)
+        if self.match_data is not NULL:
+            pcre2_match_data_free(self.match_data)
+
+
+    @staticmethod
+    cdef Match _from_data(pcre2_match_data_t *match_data, Pattern pattern,
+            Py_buffer *subject, uint32_t options
+    ):
+        """ Factory function to create Match objects from C-type fields.
+
+        The ownership of the given pointers are stolen, which causes the
+        extension type to free them when the object is deallocated.
+        """
+
+        # Fast call to __new__() that bypasses the __init__() constructor.
+        cdef Match new = Match.__new__(Match)
+        new.match_data = match_data
+        new.pattern = pattern
+        new.subject = subject
+        new.options = options
+        return new
+
