@@ -398,36 +398,36 @@ cdef class Pattern:
     # _________________________________________________________________
     #                                                           Methods
 
-    def match(self, object string, uint32_t options=0):
+    def match(self, object subject, uint32_t options=0):
         # Only allow for same type comparisons.
-        if PyUnicode_Check(string) and not PyUnicode_Check(self._patn.obj):
+        if PyUnicode_Check(subject) and not PyUnicode_Check(self._patn.obj):
             raise ValueError("Cannot use a unicode pattern on a bytes-like object.")
 
-        elif not PyUnicode_Check(string) and PyUnicode_Check(self._patn.obj):
+        elif not PyUnicode_Check(subject) and PyUnicode_Check(self._patn.obj):
             raise ValueError("Cannot use a bytes-like pattern on a unicode object.")
 
         # Attempt match of pattern onto subject.
-        cdef Py_buffer *subject = get_buffer(string)
-        match_data = pcre2_match_data_create_from_pattern(
+        cdef Py_buffer *subj = get_buffer(subject)
+        mtch = pcre2_match_data_create_from_pattern(
             self._code,
              NULL
         )
-        if not match_data:
+        if not mtch:
             raise MemoryError()
         
         cdef int match_rc = pcre2_match(
             self._code,
-            <pcre2_sptr_t>subject.buf,
-            <size_t>subject.len,
+            <pcre2_sptr_t>subj.buf,
+            <size_t>subj.len,
             0, # Start offset.
             options,
-            match_data,
+            mtch,
             NULL
         )
         if match_rc < 0:
             raise_from_rc(match_rc, None)
             
-        return Match._from_data(match_data, self, subject, options)
+        return Match._from_data(mtch, self, subj, options)
 
 
     def jit_compile(self, args):

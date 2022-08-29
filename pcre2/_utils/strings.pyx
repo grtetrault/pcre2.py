@@ -54,23 +54,22 @@ cdef Py_buffer * get_buffer(object obj):
 cdef size_t codeunit_to_codepoint(Py_buffer *pybuf, size_t codeunit_idx):
     """ Convert a code unit index to a code point index.
     """
-    
-    codepoint_idx = 0
-    for current_idx in range(codeunit_idx):
-        if (((<uint8_t *>pybuf.buf)[current_idx]) & 0xC0) != 0x80:
-            codepoint_idx += 1
-    return codepoint_idx
+    cdef size_t cur_codeunit_idx = 0
+    cdef size_t cur_codepoint_idx = 0
+    for cur_codeunit_idx in range(codeunit_idx):
+        if (((<uint8_t *>pybuf.buf)[cur_codeunit_idx]) & 0xC0) != 0x80:
+            cur_codepoint_idx += 1
+    return cur_codepoint_idx
 
     
-# cdef size_t codepoint_to_codeunit(Py_buffer *pybuf, size_t codepoint_idx):
-#     """
-#     """
+cdef size_t codepoint_to_codeunit(Py_buffer *pybuf, size_t codepoint_idx):
+    """
+    """
 
-#     current_codepoint_idx = 0
-#     codeunit_idx = 0
-
-#     while current_codepoint_idx <= codepoint_idx:
-#         if (((<uint8_t *>pybuf.buf)[codeunit_idx]) & 0xC0) != 0x80:
-#             current_codepoint_idx += 1
-#         codeunit_idx += 1
-#     return codeunit_idx
+    cdef size_t cur_codeunit_idx = 0
+    cdef size_t cur_codepoint_idx = 0
+    while cur_codepoint_idx <= codepoint_idx:
+        if (((<uint8_t *>pybuf.buf)[cur_codeunit_idx]) & 0xC0) != 0x80:
+            cur_codepoint_idx += 1
+        cur_codeunit_idx += 1
+    return cur_codeunit_idx
