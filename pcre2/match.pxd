@@ -16,15 +16,15 @@ from pcre2.pattern cimport Pattern
 #                                                                   Definitions
 
 cdef class Match:
-    cdef pcre2_match_data_t *match_data
-    cdef Pattern pattern
-    cdef Py_buffer *subject
-    cdef uint32_t options
+    cdef pcre2_match_data_t *_mtch
+    cdef Pattern _pattern
+    cdef Py_buffer *_subj
+    cdef uint32_t _opts
 
     @staticmethod
     cdef Match _from_data(
-        pcre2_match_data_t *match_data,
+        pcre2_match_data_t *mtch,
         Pattern pattern,
-        Py_buffer *subject,
-        uint32_t options
+        Py_buffer *subj,
+        uint32_t opts
     )

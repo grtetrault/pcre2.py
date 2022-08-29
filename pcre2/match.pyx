@@ -115,30 +115,30 @@ cdef class Match:
     #                                    Lifetime and memory management
 
     def __cinit__(self):
-        self.match_data = NULL
-        self.pattern = None
-        self.subject = NULL
-        self.options = 0
+        self._mtch = NULL
+        self._pattern = None
+        self._subj = NULL
+        self._opts = 0
 
 
     def __init__(self, *args, **kwargs):
         # Prevent accidental instantiation from normal Python code since we
-        # cannot pass a struct pointer into a Python constructor.
+        # cannot pass pointers into a Python constructor.
         module = self.__class__.__module__
         qualname = self.__class__.__qualname__
         raise TypeError(f"Cannot create '{module}.{qualname}' instances.")
 
 
     def __dealloc__(self):
-        if self.subject is not NULL:
-            PyBuffer_Release(self.subject)
-        if self.match_data is not NULL:
-            pcre2_match_data_free(self.match_data)
+        if self._subj is not NULL:
+            PyBuffer_Release(self._subj)
+        if self._mtch is not NULL:
+            pcre2_match_data_free(self._mtch)
 
 
     @staticmethod
-    cdef Match _from_data(pcre2_match_data_t *match_data, Pattern pattern,
-            Py_buffer *subject, uint32_t options
+    cdef Match _from_data(pcre2_match_data_t *mtch, Pattern pattern,
+            Py_buffer *subj, uint32_t opts
     ):
         """ Factory function to create Match objects from C-type fields.
 
@@ -148,9 +148,9 @@ cdef class Match:
 
         # Fast call to __new__() that bypasses the __init__() constructor.
         cdef Match new = Match.__new__(Match)
-        new.match_data = match_data
-        new.pattern = pattern
-        new.subject = subject
-        new.options = options
+        new._mtch = mtch
+        new._pattern = pattern
+        new._subj = subj
+        new._opts = opts
         return new
 

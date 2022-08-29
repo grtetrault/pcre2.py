@@ -153,28 +153,28 @@ cdef class Pattern:
     #                                    Lifetime and memory management
 
     def __cinit__(self):
-        self.code = NULL
-        self.pattern = NULL
-        self.options = 0
+        self._code = NULL
+        self._patn = NULL
+        self._opts = 0
 
 
     def __init__(self, *args, **kwargs):
         # Prevent accidental instantiation from normal Python code since we
-        # cannot pass a struct pointer into a Python constructor.
+        # cannot pass pointers into a Python constructor.
         module = self.__class__.__module__
         qualname = self.__class__.__qualname__
         raise TypeError(f"Cannot create '{module}.{qualname}' instances.")
 
 
     def __dealloc__(self):
-        if self.pattern is not NULL:
-            PyBuffer_Release(self.pattern)
-        if self.code is not NULL:
-            pcre2_code_free(self.code)
+        if self._patn is not NULL:
+            PyBuffer_Release(self._patn)
+        if self._code is not NULL:
+            pcre2_code_free(self._code)
 
 
     @staticmethod
-    cdef Pattern _from_data(pcre2_code_t *code, Py_buffer *pattern, uint32_t options):
+    cdef Pattern _from_data(pcre2_code_t *code, Py_buffer *patn, uint32_t opts):
         """ Factory function to create Pattern objects from C-type fields.
 
         The ownership of the given pointers are stolen, which causes the
@@ -182,39 +182,11 @@ cdef class Pattern:
         """
 
         # Fast call to __new__() that bypasses the __init__() constructor.
-        cdef Pattern new = Pattern.__new__(Pattern)
-        new.code = code
-        new.pattern = pattern
-        new.options = options
-        return new
-
-
-    @staticmethod
-    def compile(object string, uint32_t options=0):
-        """ Factory function to create Pattern objects with newly compiled
-        pattern.
-        """
-
-        cdef Py_buffer *pattern = get_buffer(string)
-
-        cdef pcre2_code_t *code
-        cdef int compile_rc
-        cdef size_t compile_errpos
-        code = pcre2_compile(
-            <pcre2_sptr_t>pattern.buf,
-            <size_t>pattern.len,
-            options,
-            &compile_rc, &compile_errpos,
-            NULL
-        )
-
-        if code is NULL:
-            # If source was a unicode string, use the code point offset.
-            compile_errpos = codeunit_to_codepoint(pattern, compile_errpos)
-            additional_msg = f"Compilation failed at position {compile_errpos!r}."
-            raise_from_rc(compile_rc, additional_msg)
-
-        return Pattern._from_data(code, pattern, options)
+        cdef Pattern pattern = Pattern.__new__(Pattern)
+        pattern._code = code
+        pattern._patn = patn
+        pattern._opts = opts
+        return pattern
 
 
     # _________________________________________________________________
@@ -226,7 +198,7 @@ cdef class Pattern:
         """
         cdef int pattern_info_rc
         cdef uint32_t where
-        pattern_info_rc = pcre2_pattern_info(self.code, what, &where)
+        pattern_info_rc = pcre2_pattern_info(self._code, what, &where)
         if pattern_info_rc < 0:
             raise_from_rc(pattern_info_rc, None)
         return where
@@ -237,7 +209,7 @@ cdef class Pattern:
         """
         cdef int pattern_info_rc
         cdef bint where
-        pattern_info_rc = pcre2_pattern_info(self.code, what, &where)
+        pattern_info_rc = pcre2_pattern_info(self._code, what, &where)
         if pattern_info_rc < 0:
             raise_from_rc(pattern_info_rc, None)
         return where
@@ -247,14 +219,14 @@ cdef class Pattern:
     def pattern(self):
         """ Return the pattern the object was compiled with.
         """
-        return self.pattern.obj
+        return self._patn.obj
 
     
     @property
     def options(self):
         """ Return the options the object was compiled with.
         """
-        return self.options
+        return self._opts
 
 
     @property
@@ -398,7 +370,7 @@ cdef class Pattern:
         name_entry_size = self._pcre2_pattern_info_uint(PCRE2_INFO_NAMEENTRYSIZE)
 
         cdef pcre2_sptr_t name_table
-        pattern_info_rc = pcre2_pattern_info(self.code, PCRE2_INFO_NAMETABLE, &name_table)
+        pattern_info_rc = pcre2_pattern_info(self._code, PCRE2_INFO_NAMETABLE, &name_table)
         if pattern_info_rc < 0:
             raise_from_rc(pattern_info_rc, None)
 
@@ -415,7 +387,7 @@ cdef class Pattern:
 
             # Clean up entry and convert to unicode as appropriate.
             entry_name = entry_name.strip(b"\x00")
-            if PyUnicode_Check(self.pattern.obj):
+            if PyUnicode_Check(self._patn.obj):
                 entry_name = entry_name.decode("utf-8")
 
             name_dict[entry_idx] = entry_name
@@ -428,23 +400,23 @@ cdef class Pattern:
 
     def match(self, object string, uint32_t options=0):
         # Only allow for same type comparisons.
-        if PyUnicode_Check(string) and not PyUnicode_Check(self.pattern.obj):
+        if PyUnicode_Check(string) and not PyUnicode_Check(self._patn.obj):
             raise ValueError("Cannot use a unicode pattern on a bytes-like object.")
 
-        elif not PyUnicode_Check(string) and PyUnicode_Check(self.pattern.obj):
+        elif not PyUnicode_Check(string) and PyUnicode_Check(self._patn.obj):
             raise ValueError("Cannot use a bytes-like pattern on a unicode object.")
 
         # Attempt match of pattern onto subject.
         cdef Py_buffer *subject = get_buffer(string)
         match_data = pcre2_match_data_create_from_pattern(
-            self.code,
+            self._code,
              NULL
         )
         if not match_data:
             raise MemoryError()
         
         cdef int match_rc = pcre2_match(
-            self.code,
+            self._code,
             <pcre2_sptr_t>subject.buf,
             <size_t>subject.len,
             0, # Start offset.
