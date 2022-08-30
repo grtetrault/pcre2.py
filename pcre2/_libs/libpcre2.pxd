@@ -381,6 +381,12 @@ cdef extern from "pcre2.h":
         pcre2_compile_context_t *ccontext
     )
 
+    int pcre2_jit_compile(
+        pcre2_code_t *code,
+        uint32_t options
+    )
+
+
     void pcre2_code_free(pcre2_code_t *code)
 
     # Information on compiled pattern.

@@ -82,8 +82,6 @@ class SubstituteOption(IntEnum):
     NOTEOL = PCRE2_NOTEOL
     NOTEMPTY = PCRE2_NOTEMPTY
     NOTEMPTY_ATSTART = PCRE2_NOTEMPTY_ATSTART
-    PARTIAL_SOFT = PCRE2_PARTIAL_SOFT
-    PARTIAL_HARD = PCRE2_PARTIAL_HARD
     NO_JIT = PCRE2_NO_JIT
 
     # Substitute only flags.
@@ -408,18 +406,20 @@ cdef class Pattern:
         elif not is_unicode_subject and is_unicode_patn:
             raise ValueError("Cannot use a bytes-like pattern on a unicode object.")
 
-        # Attempt match of pattern onto subject.
+        # Convert Python object to C string and convert indices accordingly.
         cdef Py_buffer *subj = get_buffer(subject)
         if is_unicode_subject:
             startpos = codepoint_to_codeunit(subj, startpos) 
 
-        cdef pcre2_match_data *mtch = pcre2_match_data_create_from_pattern(
+        # Allocate memory for match.
+        cdef pcre2_match_data_t *mtch = pcre2_match_data_create_from_pattern(
             self._code,
             NULL
         )
         if not mtch:
             raise MemoryError()
         
+        # Attempt match of pattern onto subject.
         cdef int match_rc = pcre2_match(self._code,
             <pcre2_sptr_t>subj.buf,
             <size_t>subj.len,
@@ -434,8 +434,10 @@ cdef class Pattern:
         return Match._from_data(mtch, self, subj, startpos, options)
 
 
-    def jit_compile(self, args):
-        pass
+    def jit_compile(self):
+        cdef int jit_compile_rc = pcre2_jit_compile(self._code, PCRE2_JIT_COMPLETE)
+        if jit_compile_rc < 0:
+            raise_from_rc(jit_compile_rc, None)
 
 
     def substitute(self, args):
