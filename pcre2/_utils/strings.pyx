@@ -68,7 +68,7 @@ cdef size_t codepoint_to_codeunit(Py_buffer *pybuf, size_t codepoint_idx):
 
     cdef size_t cur_codeunit_idx = 0
     cdef size_t cur_codepoint_idx = 0
-    while cur_codepoint_idx <= codepoint_idx:
+    while cur_codepoint_idx < codepoint_idx:
         if (((<uint8_t *>pybuf.buf)[cur_codeunit_idx]) & 0xC0) != 0x80:
             cur_codepoint_idx += 1
         cur_codeunit_idx += 1

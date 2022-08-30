@@ -25,15 +25,17 @@ def compile(object pattern, uint32_t options=0):
         """ Factory function to create Pattern objects with newly compiled
         pattern.
         """
-
+        
         cdef Py_buffer *patn = get_buffer(pattern)
 
-        cdef pcre2_code_t *code
+        # Ensure unicode strings are processed with UTF-8 support.
+        if PyUnicode_Check(pattern):
+            options = options | PCRE2_UTF
+
         cdef int compile_rc
         cdef size_t compile_errpos
-        code = pcre2_compile(
-            <pcre2_sptr_t>patn.buf,
-            <size_t>patn.len,
+        cdef pcre2_code_t *code = pcre2_compile(
+            <pcre2_sptr_t>patn.buf, <size_t>patn.len,
             options,
             &compile_rc, &compile_errpos,
             NULL
@@ -41,7 +43,8 @@ def compile(object pattern, uint32_t options=0):
 
         if code is NULL:
             # If source was a unicode string, use the code point offset.
-            compile_errpos = codeunit_to_codepoint(patn, compile_errpos)
+            if PyUnicode_Check(pattern):
+                compile_errpos = codeunit_to_codepoint(patn, compile_errpos)
             additional_msg = f"Compilation failed at position {compile_errpos!r}."
             raise_from_rc(compile_rc, additional_msg)
 

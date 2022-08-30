@@ -56,7 +56,7 @@ class CompilationError(LibraryError):
         super().__init__(errorcode, context_msg=context_msg)
 
 
-class MatchingError(LibraryError):
+class MatchError(LibraryError):
     """ Raised when no or partial match found in libpcre2.match().
     """
     
@@ -87,7 +87,7 @@ cdef raise_from_rc(int errorcode, object context_msg):
         raise CompilationError(errorcode, context_msg)
 
     elif errorcode == PCRE2_ERROR_NOMATCH or errorcode == PCRE2_ERROR_PARTIAL:
-        raise MatchingError(errorcode, context_msg)
+        raise MatchError(errorcode, context_msg)
 
     else:
         raise LibraryError(errorcode, context_msg)
