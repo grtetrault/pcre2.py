@@ -396,14 +396,17 @@ cdef class Pattern:
     # _________________________________________________________________
     #                                                           Methods
 
-    def match(self, object subject, size_t startpos, uint32_t options=0):
-        # Only allow for same type comparisons.
-        cdef bint is_unicode_subject = PyUnicode_Check(subject)
-        cdef bint is_unicode_patn = PyUnicode_Check(self._patn.obj)
+    def match(self, object subject, size_t startpos=0, uint32_t options=0):
+        """
+        """
 
-        if is_unicode_subject and not is_unicode_patn:
+        # Only allow for same type comparisons.
+        cdef bint is_unicode_patn = PyUnicode_Check(self._patn.obj)
+        cdef bint is_unicode_subject = PyUnicode_Check(subject)
+
+        if not all(is_unicode_patn, is_unicode_subject):
             raise ValueError("Cannot use a unicode pattern on a bytes-like object.")
-        elif not is_unicode_subject and is_unicode_patn:
+        elif any(is_unicode_patn, is_unicode_subject):
             raise ValueError("Cannot use a bytes-like pattern on a unicode object.")
 
         # Convert Python object to C string and convert indices accordingly.
@@ -421,8 +424,7 @@ cdef class Pattern:
         
         # Attempt match of pattern onto subject.
         cdef int match_rc = pcre2_match(self._code,
-            <pcre2_sptr_t>subj.buf,
-            <size_t>subj.len,
+            <pcre2_sptr_t>subj.buf, <size_t>subj.len,
             startpos,
             options,
             mtch,
@@ -435,10 +437,54 @@ cdef class Pattern:
 
 
     def jit_compile(self):
+        """
+        """
+
         cdef int jit_compile_rc = pcre2_jit_compile(self._code, PCRE2_JIT_COMPLETE)
         if jit_compile_rc < 0:
             raise_from_rc(jit_compile_rc, None)
 
 
-    def substitute(self, args):
-        pass
+    def substitute(self, object subject, object replacement, size_t startpos=0, uint32_t options=0):
+        """
+        """
+
+        # Only allow for same type comparisons.
+        cdef bint is_unicode_patn = PyUnicode_Check(self._patn.obj)
+        cdef bint is_unicode_subject = PyUnicode_Check(subject)
+        cdef bint is_unicode_replacement = PyUnicode_Check(replacement)
+
+        if not all(is_unicode_patn, is_unicode_subject, is_unicode_replacement):
+            raise ValueError("Cannot use a unicode pattern on a bytes-like object.")
+        elif any(is_unicode_patn, is_unicode_subject, is_unicode_replacement):
+            raise ValueError("Cannot use a bytes-like pattern on a unicode object.")
+
+        # Convert Python objects to C strings.
+        cdef Py_buffer *subj = get_buffer(subject)
+        cdef Py_buffer *repl = get_buffer(replacement)
+        if is_unicode_subject:
+            startpos = codepoint_to_codeunit(subj, startpos)
+
+        # Attempt string substitution.
+        cdef uint8_t *res = malloc
+        cdef size_t res_len = 
+        cdef int substitute_rc = int pcre2_substitute(
+            self._code,
+            <pcre2_sptr_t>subj.buf, <size_t>subj.len,
+            startpos,
+            options,
+            NULL,
+            NULL,
+            <pcre2_sptr_t>repl.buf, <size_t>repl.len,
+            res, &res_len
+        )
+        if substitute_rc < 0:
+            raise_from_rc(substitute_rc, None)
+
+        # Clean up result and convert to unicode as appropriate.
+        result = res[res_len]
+        result = result.strip(b"\x00")
+        if is_unicode_patn:
+            result = result.decode("utf-8")
+            
+        return None
