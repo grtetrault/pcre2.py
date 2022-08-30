@@ -413,15 +413,14 @@ cdef class Pattern:
         if is_unicode_subject:
             startpos = codepoint_to_codeunit(subj, startpos) 
 
-        mtch = pcre2_match_data_create_from_pattern(
+        cdef pcre2_match_data *mtch = pcre2_match_data_create_from_pattern(
             self._code,
-             NULL
+            NULL
         )
         if not mtch:
             raise MemoryError()
         
-        cdef int match_rc = pcre2_match(
-            self._code,
+        cdef int match_rc = pcre2_match(self._code,
             <pcre2_sptr_t>subj.buf,
             <size_t>subj.len,
             startpos,
