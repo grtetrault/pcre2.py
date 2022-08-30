@@ -23,9 +23,9 @@ cdef class Pattern:
         Dynamic attributes are enabled for this class.
 
         code: Compiled PCRE2 code.
-        options: PCRE2 compilation options.
-        pattern: Buffer containing source pattern expression including byte
-            string and a reference to source object.
+        opts: PCRE2 compilation options.
+        patn: Buffer containing source pattern expression including byte string
+            and a reference to source object.
     """
 
     def __cinit__(self):

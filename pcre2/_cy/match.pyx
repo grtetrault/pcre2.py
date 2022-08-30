@@ -19,10 +19,10 @@ cdef class Match:
     See match.pxd for attribute definitions.
 
     Attributes:
-        match_data:
+        mtch:
         pattern: 
-        subject:
-        options:
+        subj:
+        opts:
     """
 
     def __cinit__(self):
