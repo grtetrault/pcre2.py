@@ -14,7 +14,7 @@ from cpython.unicode cimport PyUnicode_Check
 from pcre2._libs.libpcre2 cimport *
 from pcre2.exceptions cimport raise_from_rc
 from pcre2._utils.strings cimport (
-    get_buffer, codeunit_to_codepoint
+    get_buffer, codeunit_to_codepoint, codepoint_to_codeunit
 )
 from pcre2.match cimport Match
 
@@ -398,16 +398,21 @@ cdef class Pattern:
     # _________________________________________________________________
     #                                                           Methods
 
-    def match(self, object subject, uint32_t options=0):
+    def match(self, object subject, size_t startpos, uint32_t options=0):
         # Only allow for same type comparisons.
-        if PyUnicode_Check(subject) and not PyUnicode_Check(self._patn.obj):
-            raise ValueError("Cannot use a unicode pattern on a bytes-like object.")
+        cdef bint is_unicode_subject = PyUnicode_Check(subject)
+        cdef bint is_unicode_patn = PyUnicode_Check(self._patn.obj)
 
-        elif not PyUnicode_Check(subject) and PyUnicode_Check(self._patn.obj):
+        if is_unicode_subject and not is_unicode_patn:
+            raise ValueError("Cannot use a unicode pattern on a bytes-like object.")
+        elif not is_unicode_subject and is_unicode_patn:
             raise ValueError("Cannot use a bytes-like pattern on a unicode object.")
 
         # Attempt match of pattern onto subject.
         cdef Py_buffer *subj = get_buffer(subject)
+        if is_unicode_subject:
+            startpos = codepoint_to_codeunit(subj, startpos) 
+
         mtch = pcre2_match_data_create_from_pattern(
             self._code,
              NULL
@@ -419,7 +424,7 @@ cdef class Pattern:
             self._code,
             <pcre2_sptr_t>subj.buf,
             <size_t>subj.len,
-            0, # Start offset.
+            startpos,
             options,
             mtch,
             NULL
@@ -427,7 +432,7 @@ cdef class Pattern:
         if match_rc < 0:
             raise_from_rc(match_rc, None)
             
-        return Match._from_data(mtch, self, subj, options)
+        return Match._from_data(mtch, self, subj, startpos, options)
 
 
     def jit_compile(self, args):

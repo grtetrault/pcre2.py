@@ -19,6 +19,7 @@ cdef class Match:
     cdef pcre2_match_data_t *_mtch
     cdef Pattern _pattern
     cdef Py_buffer *_subj
+    cdef size_t _spos
     cdef uint32_t _opts
 
     @staticmethod
@@ -26,5 +27,6 @@ cdef class Match:
         pcre2_match_data_t *mtch,
         Pattern pattern,
         Py_buffer *subj,
+        size_t spos,
         uint32_t opts
     )

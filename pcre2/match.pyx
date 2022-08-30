@@ -138,7 +138,7 @@ cdef class Match:
 
     @staticmethod
     cdef Match _from_data(pcre2_match_data_t *mtch, Pattern pattern,
-            Py_buffer *subj, uint32_t opts
+            Py_buffer *subj, size_t spos, uint32_t opts
     ):
         """ Factory function to create Match objects from C-type fields.
 
@@ -147,10 +147,11 @@ cdef class Match:
         """
 
         # Fast call to __new__() that bypasses the __init__() constructor.
-        cdef Match new = Match.__new__(Match)
-        new._mtch = mtch
-        new._pattern = pattern
-        new._subj = subj
-        new._opts = opts
-        return new
+        cdef Match match = Match.__new__(Match)
+        match._mtch = mtch
+        match._pattern = pattern
+        match._subj = subj
+        match._spos = spos
+        match._opts = opts
+        return match
 
