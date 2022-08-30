@@ -1,26 +1,12 @@
 # -*- coding:utf-8 -*-
 
-# _____________________________________________________________________________
-#                                                                       Imports
-
 # Standard libraries.
 from enum import IntEnum
-from libc.stdint cimport uint32_t
-from libc.stdlib cimport malloc, free
-from cpython cimport Py_buffer, PyBuffer_Release
-from cpython.unicode cimport PyUnicode_Check
 
 # Local imports.
-from pcre2._libs.libpcre2 cimport *
-from pcre2.exceptions cimport raise_from_rc
-from pcre2._utils.strings cimport (
-    get_buffer, codeunit_to_codepoint, codepoint_to_codeunit
-)
-from pcre2.match cimport Match
+from .utils cimport *
+from .libpcre2 cimport *
 
-
-# _____________________________________________________________________________
-#                                                              Function Options
 
 class MetaOption(IntEnum):
     def __repr__(self):
@@ -104,9 +90,6 @@ class SubstituteOption(MetaOption):
 # Type alias.
 ExpandOption = SubstituteOption
 
-
-# _____________________________________________________________________________
-#                                                                         Enums
 
 class BsrChar(IntEnum):
     UNICODE = PCRE2_BSR_UNICODE

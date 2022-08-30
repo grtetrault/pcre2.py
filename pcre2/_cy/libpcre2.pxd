@@ -1,12 +1,7 @@
 # -*- coding:utf-8 -*-
 
-# _____________________________________________________________________________
-#                                                                      Imports
-
 from libc.stdint cimport uint8_t, uint32_t
 
-# _____________________________________________________________________________
-#                                                                 External API
 
 cdef extern from "pcre2.h":
     # The following option bits can be passed to pcre2_compile(),

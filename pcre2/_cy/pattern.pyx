@@ -1,8 +1,5 @@
 # -*- coding:utf-8 -*-
 
-# _____________________________________________________________________________
-#                                                                       Imports
-
 # Standard libraries.
 from enum import IntEnum
 from libc.stdint cimport uint32_t
@@ -11,17 +8,11 @@ from cpython cimport Py_buffer, PyBuffer_Release
 from cpython.unicode cimport PyUnicode_Check
 
 # Local imports.
-from pcre2._libs.libpcre2 cimport *
-from pcre2.exceptions cimport raise_from_rc
-from pcre2._utils.strings cimport (
-    get_buffer, codeunit_to_codepoint, codepoint_to_codeunit
-)
-from pcre2.match cimport Match
-from pcre2.consts import BsrChar, NewlineChar
+from .utils cimport *
+from .libpcre2 cimport *
+from .match cimport Match
+from .consts import BsrChar, NewlineChar
 
-
-# _____________________________________________________________________________
-#                                                                 Pattern class
 
 cdef class Pattern:
     """
@@ -36,10 +27,6 @@ cdef class Pattern:
         pattern: Buffer containing source pattern expression including byte
             string and a reference to source object.
     """
-
-    
-    # _________________________________________________________________
-    #                                    Lifetime and memory management
 
     def __cinit__(self):
         self._code = NULL
@@ -78,9 +65,9 @@ cdef class Pattern:
         return pattern
 
 
-    # _________________________________________________________________
-    #                                               Pattern information
-
+    # =========================== #
+    #     Pattern information     #
+    # =========================== #
 
     cdef uint32_t _pcre2_pattern_info_uint(self, uint32_t what):
         """ Safely access pattern info returned as uint32_t. 
@@ -284,8 +271,9 @@ cdef class Pattern:
         return name_dict
 
 
-    # _________________________________________________________________
-    #                                                           Methods
+    # =============== #
+    #     Methods     #
+    # =============== #
 
     def match(self, object subject, size_t startpos=0, uint32_t options=0):
         """

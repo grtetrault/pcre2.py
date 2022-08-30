@@ -1,25 +1,16 @@
 # -*- coding:utf-8 -*-
 
-# _____________________________________________________________________________
-#                                                                       Imports
-
 # Standard libraries.
 from libc.stdint cimport uint32_t
 from cpython cimport Py_buffer
 from cpython.unicode cimport PyUnicode_Check
 
 # Local imports.
-from pcre2._libs.libpcre2 cimport *
-from pcre2.exceptions cimport raise_from_rc
-from pcre2._utils.strings cimport (
-    get_buffer, codeunit_to_codepoint
-)
-from pcre2.pattern cimport Pattern
-from pcre2.match cimport Match
+from .utils cimport *
+from .libpcre2 cimport *
+from .pattern cimport Pattern
+from .match cimport Match
 
-
-# _____________________________________________________________________________
-#                                                           Class Level Methods
 
 def compile(object pattern, uint32_t options=0):
         """ Factory function to create Pattern objects with newly compiled

@@ -1,21 +1,13 @@
 # -*- coding:utf-8 -*-
 
-# _____________________________________________________________________________
-#                                                                       Imports
-
 # Standard libraries.
 from libc.stdint cimport uint8_t
 
 
 # Local imports.
-from pcre2._libs.libpcre2 cimport *
-from pcre2._utils.strings cimport (
-    get_buffer, codeunit_to_codepoint
-)
+from .utils cimport *
+from .libpcre2 cimport *
 
-
-# _____________________________________________________________________________
-#                                                             Exception classes
 
 class LibraryError(Exception):
     """ Catch all for other PCRE2 errors (e.g. bad option bits).
@@ -45,7 +37,7 @@ class LibraryError(Exception):
         self.errorcode = errorcode
 
 
-class CompilationError(LibraryError):
+class CompileError(LibraryError):
     """ An error occured during libpcre2.compile().
     """
     
@@ -66,28 +58,3 @@ class MatchError(LibraryError):
         
         super().__init__(errorcode, context_msg=context_msg)
 
-
-# _____________________________________________________________________________
-#                                                            Exception handling
-
-cdef raise_from_rc(int errorcode, object context_msg):
-    """ Raise the appropriate error type from the given error code.
-
-    Raises one of the custom exception classes defined in this module. Each
-    exception corresponds to a set of error codes defined in PCRE2. Error
-    messages are retrieved from PCRE2 directly.
-
-    Args:
-        errorcode: An error code from a PCRE2 API call.
-        context_msg: Additional context to append to the PCRE2 error message.
-    """
-
-    # Match against error code classes.
-    if errorcode > 0:
-        raise CompilationError(errorcode, context_msg)
-
-    elif errorcode == PCRE2_ERROR_NOMATCH or errorcode == PCRE2_ERROR_PARTIAL:
-        raise MatchError(errorcode, context_msg)
-
-    else:
-        raise LibraryError(errorcode, context_msg)

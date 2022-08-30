@@ -1,3 +1,3 @@
-from pcre2.pattern import Pattern
-from pcre2.match import Match
-from pcre2.methods import *
+from pcre2._cy.pattern import Pattern
+from pcre2._cy.match import Match
+from pcre2._cy.methods import *

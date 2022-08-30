@@ -1,8 +1,5 @@
 # -*- coding:utf-8 -*-
 
-# _____________________________________________________________________________
-#                                                                       Imports
-
 # Standard libraries.
 from libc.stdlib cimport malloc
 from libc.stdint cimport uint8_t
@@ -19,9 +16,10 @@ cdef extern from "Python.h":
     # Unicode string handling.
     const char * PyUnicode_AsUTF8AndSize(object unicode, Py_ssize_t *size)
 
+# Local imports.
+from .libpcre2 cimport *
+from .exceptions import LibraryError, CompileError, MatchError
 
-# _____________________________________________________________________________
-#                                                              String utilities
 
 cdef Py_buffer * get_buffer(object obj):
     """ Get a Python buffer from an object, encoding via UTF-8 if unicode
@@ -73,3 +71,26 @@ cdef size_t codepoint_to_codeunit(Py_buffer *pybuf, size_t codepoint_idx):
             cur_codepoint_idx += 1
         cur_codeunit_idx += 1
     return cur_codeunit_idx
+
+
+cdef raise_from_rc(int errorcode, object context_msg):
+    """ Raise the appropriate error type from the given error code.
+
+    Raises one of the custom exception classes defined in this module. Each
+    exception corresponds to a set of error codes defined in PCRE2. Error
+    messages are retrieved from PCRE2 directly.
+
+    Args:
+        errorcode: An error code from a PCRE2 API call.
+        context_msg: Additional context to append to the PCRE2 error message.
+    """
+
+    # Match against error code classes.
+    if errorcode > 0:
+        raise CompileError(errorcode, context_msg)
+
+    elif errorcode == PCRE2_ERROR_NOMATCH or errorcode == PCRE2_ERROR_PARTIAL:
+        raise MatchError(errorcode, context_msg)
+
+    else:
+        raise LibraryError(errorcode, context_msg)

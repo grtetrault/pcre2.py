@@ -1,8 +1,5 @@
 # -*- coding:utf-8 -*-
 
-# _____________________________________________________________________________
-#                                                                       Imports
-
 # Standard libraries.
 from enum import IntEnum
 from libc.stdint cimport uint32_t
@@ -11,16 +8,10 @@ from cpython cimport PyBuffer_Release
 from cpython.unicode cimport PyUnicode_Check
 
 # Local imports.
-from pcre2._libs.libpcre2 cimport *
-from pcre2.exceptions cimport raise_from_rc
-from pcre2._utils.strings cimport (
-    get_buffer, codeunit_to_codepoint
-)
-from pcre2.pattern cimport Pattern
+from .utils cimport *
+from .libpcre2 cimport *
+from .pattern cimport Pattern
 
-
-# _____________________________________________________________________________
-#                                                                   Match class
 
 cdef class Match:
     """
@@ -33,10 +24,6 @@ cdef class Match:
         subject:
         options:
     """
-    
-
-    # _________________________________________________________________
-    #                                    Lifetime and memory management
 
     def __cinit__(self):
         self._mtch = NULL
