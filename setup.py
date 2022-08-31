@@ -122,7 +122,7 @@ class Pcre2BuildExt(setuptools.command.build_ext.build_ext):
 ext_src = CWD.joinpath("pcre2")
 pcre2_extension = setuptools.extension.Extension(
     "pcre2.*",
-    sources=[f"{str(ext_src)}/**/*.pyx"],
+    sources=[f"{str(ext_src)}/*.pyx"],
     include_dirs=[str(Pcre2BuildExt.pcre2_src)],
     extra_objects=[str(Pcre2BuildExt.pcre2_static_lib)],
     extra_compile_args=Pcre2BuildExt.pcre2_compile_args
