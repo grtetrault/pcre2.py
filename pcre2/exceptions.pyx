@@ -15,7 +15,7 @@ class LibraryError(Exception):
 
     def __init__(self, errorcode, context_msg=""):
         cdef uint8_t errormsg_buf[120]
-        cdef int get_error_message_rc = pcre2_get_error_message(
+        get_error_message_rc = pcre2_get_error_message(
             errorcode, 
             errormsg_buf, sizeof(errormsg_buf)
         )

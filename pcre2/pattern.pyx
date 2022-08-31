@@ -28,6 +28,10 @@ cdef class Pattern:
             and a reference to source object.
     """
 
+    # =================================== #
+    #         Lifetime management         #
+    # =================================== #
+
     def __cinit__(self):
         self._code = NULL
         self._patn = NULL
@@ -64,14 +68,13 @@ cdef class Pattern:
         return pattern
 
 
-    # =========================== #
-    #     Pattern information     #
-    # =========================== #
+    # =================================== #
+    #         Pattern information         #
+    # =================================== #
 
     cdef uint32_t _pcre2_pattern_info_uint(self, uint32_t what):
         """ Safely access pattern info returned as uint32_t. 
         """
-        cdef int pattern_info_rc
         cdef uint32_t where
         pattern_info_rc = pcre2_pattern_info(self._code, what, &where)
         if pattern_info_rc < 0:
@@ -82,7 +85,6 @@ cdef class Pattern:
     cdef bint _pcre2_pattern_info_bint(self, uint32_t what):
         """ Safely access pattern info returned as bint. 
         """
-        cdef int pattern_info_rc
         cdef bint where
         pattern_info_rc = pcre2_pattern_info(self._code, what, &where)
         if pattern_info_rc < 0:
@@ -124,7 +126,6 @@ cdef class Pattern:
         """ Return an indicator to what character sequences the \R escape
         sequence matches.
         """
-        cdef uint32_t bsr
         bsr = self._pcre2_pattern_info_uint(PCRE2_INFO_BSR)
         return BsrChar(bsr)
 
@@ -223,7 +224,6 @@ cdef class Pattern:
         """ Returns the type of character sequence that will be recognized as 
         meaning "newline" while matching.
         """
-        cdef uint32_t newline
         newline = self._pcre2_pattern_info_uint(PCRE2_INFO_NEWLINE)
         return NewlineChar(newline)
 
@@ -239,8 +239,6 @@ cdef class Pattern:
         """ Dictionary from capture group index to capture group name.
         """
         # Get name table related information.
-        cdef uint32_t name_count
-        cdef uint32_t name_entry_size
         name_count = self._pcre2_pattern_info_uint(PCRE2_INFO_NAMECOUNT)
         name_entry_size = self._pcre2_pattern_info_uint(PCRE2_INFO_NAMEENTRYSIZE)
 
@@ -250,11 +248,11 @@ cdef class Pattern:
             raise_from_rc(pattern_info_rc, None)
 
         # Convert byte table to dictionary.
-        cdef uint32_t i
-        cdef uint32_t offset
         name_dict = {}
+        cdef uint32_t i
         for i in range(name_count):
             offset = i * name_entry_size
+
             # First two bytes of name table contain index, followed by possibly
             # unicode byte string.
             entry_idx = int((name_table[offset] << 8) | name_table[offset + 1])
@@ -270,21 +268,21 @@ cdef class Pattern:
         return name_dict
 
 
-    # =============== #
-    #     Methods     #
-    # =============== #
+    # ======================= #
+    #         Methods         #
+    # ======================= #
 
     def match(self, subject, size_t startpos=0, uint32_t options=0):
         """
         """
-        cdef Py_buffer *subj = get_buffer(subject)
+        subj = get_buffer(subject)
 
         # Convert indices accordingly.
         if PyUnicode_Check(subject):
             startpos = codepoint_to_codeunit(subj, startpos)
 
         # Allocate memory for match.
-        cdef pcre2_match_data_t *mtch = pcre2_match_data_create_from_pattern(
+        mtch = pcre2_match_data_create_from_pattern(
             self._code,
             NULL
         )
@@ -292,7 +290,7 @@ cdef class Pattern:
             raise MemoryError()
 
         # Attempt match of pattern onto subject.
-        cdef int match_rc = pcre2_match(
+        match_rc = pcre2_match(
             self._code,
             <pcre2_sptr_t>subj.buf, <size_t>subj.len,
             startpos,
@@ -309,7 +307,7 @@ cdef class Pattern:
     def jit_compile(self):
         """
         """
-        cdef int jit_compile_rc = pcre2_jit_compile(self._code, PCRE2_JIT_COMPLETE)
+        jit_compile_rc = pcre2_jit_compile(self._code, PCRE2_JIT_COMPLETE)
         if jit_compile_rc < 0:
             raise_from_rc(jit_compile_rc, None)
 
@@ -318,15 +316,15 @@ cdef class Pattern:
         """ The type of the subject determines the type of the returned string.
         """
         # Convert Python objects to C strings.
-        cdef Py_buffer *subj = get_buffer(subject)
-        cdef Py_buffer *repl = get_buffer(replacement)
+        subj = get_buffer(subject)
+        repl = get_buffer(replacement)
         if PyUnicode_Check(subject):
             startpos = codepoint_to_codeunit(subj, startpos)
 
         # Dry run of substitution to get required replacement length.
         cdef uint8_t *res = NULL
         cdef size_t res_len = 0
-        cdef int substitute_rc = pcre2_substitute(
+        substitute_rc = pcre2_substitute(
             self._code,
             <pcre2_sptr_t>subj.buf, <size_t>subj.len,
             startpos,

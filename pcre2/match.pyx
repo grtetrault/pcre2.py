@@ -25,6 +25,10 @@ cdef class Match:
         opts:
     """
 
+    # =================================== #
+    #         Lifetime management         #
+    # =================================== #
+
     def __cinit__(self):
         self._mtch = NULL
         self._pattern = None
@@ -66,3 +70,33 @@ cdef class Match:
         match._opts = opts
         return match
 
+
+    # ======================= #
+    #         Methods         #
+    # ======================= #
+
+    def substring(self, group=0):
+        cdef uint8_t *res
+        cdef size_t res_len
+        if isinstance(group, int):
+            grp_num = <uint32_t>group
+            get_rc = pcre2_substring_get_bynumber(
+                self._mtch, grp_num, &res, &res_len
+            )
+            if get_rc < 0:
+                raise_from_rc(get_rc, None)
+        else:
+            grp_name = get_buffer(group)
+            get_rc = pcre2_substring_get_byname(
+                self._mtch, <pcre2_sptr_t>grp_name.buf, &res, &res_len
+            )
+            if get_rc < 0:
+                raise_from_rc(get_rc, None)
+
+        # Clean up result and convert to unicode as appropriate.
+        result = (<pcre2_sptr_t>res)[:res_len]
+        result = result.strip(b"\x00")
+        if PyUnicode_Check(self._subj.obj):
+            result = result.decode("utf-8")
+            
+        return result
