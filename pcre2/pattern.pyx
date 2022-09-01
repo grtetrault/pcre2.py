@@ -273,14 +273,14 @@ cdef class Pattern:
     #         Methods         #
     # ======================= #
 
-    def match(self, subject, size_t startpos=0, uint32_t options=0):
+    def match(self, subject, size_t offset=0, uint32_t options=0):
         """
         """
         subj = get_buffer(subject)
 
         # Convert indices accordingly.
         if PyUnicode_Check(subject):
-            startpos = codepoint_to_codeunit(subj, startpos)
+            offset = codepoint_to_codeunit(subj, offset)
 
         # Allocate memory for match.
         mtch = pcre2_match_data_create_from_pattern(
@@ -294,7 +294,7 @@ cdef class Pattern:
         match_rc = pcre2_match(
             self._code,
             <pcre2_sptr_t>subj.buf, <size_t>subj.len,
-            startpos,
+            offset,
             options,
             mtch,
             NULL
@@ -302,7 +302,7 @@ cdef class Pattern:
         if match_rc < 0:
             raise_from_rc(match_rc, None)
             
-        return Match._from_data(mtch, self, subj, startpos, options)
+        return Match._from_data(mtch, self, subj, offset, options)
 
 
     def jit_compile(self):
@@ -313,14 +313,14 @@ cdef class Pattern:
             raise_from_rc(jit_compile_rc, None)
 
 
-    def substitute(self, replacement, subject, size_t startpos=0, uint32_t options=0):
+    def substitute(self, replacement, subject, size_t offset=0, uint32_t options=0):
         """ The type of the subject determines the type of the returned string.
         """
         # Convert Python objects to C strings.
         subj = get_buffer(subject)
         repl = get_buffer(replacement)
         if PyUnicode_Check(subject):
-            startpos = codepoint_to_codeunit(subj, startpos)
+            offset = codepoint_to_codeunit(subj, offset)
 
         # Dry run of substitution to get required replacement length.
         cdef uint8_t *res = NULL
@@ -328,7 +328,7 @@ cdef class Pattern:
         substitute_rc = pcre2_substitute(
             self._code,
             <pcre2_sptr_t>subj.buf, <size_t>subj.len,
-            startpos,
+            offset,
             options | PCRE2_SUBSTITUTE_OVERFLOW_LENGTH,
             NULL,
             NULL,
@@ -343,7 +343,7 @@ cdef class Pattern:
         substitute_rc = pcre2_substitute(
             self._code,
             <pcre2_sptr_t>subj.buf, <size_t>subj.len,
-            startpos,
+            offset,
             options,
             NULL,
             NULL,

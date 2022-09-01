@@ -53,7 +53,7 @@ cdef class Match:
 
     @staticmethod
     cdef Match _from_data(pcre2_match_data_t *mtch, Pattern pattern,
-            Py_buffer *subj, size_t spos, uint32_t opts
+            Py_buffer *subj, size_t ofst, uint32_t opts
     ):
         """ Factory function to create Match objects from C-type fields.
 
@@ -66,14 +66,54 @@ cdef class Match:
         match._mtch = mtch
         match._pattern = pattern
         match._subj = subj
-        match._spos = spos
+        match._ofst = ofst
         match._opts = opts
         return match
+
+
+    # ========================== #
+    #         Properties         #
+    # ========================== #
+
+    @property
+    def options(self):
+        return self._opts
+
+
+    @property
+    def offset(self):
+        return self._ofst
+
+    
+    @property
+    def subject(self):
+        return self._subj.obj
+
+    
+    @property
+    def pattern(self):
+        return self._pattern
 
 
     # ======================= #
     #         Methods         #
     # ======================= #
+
+    def startpos(self, group=0):
+        cdef uint32_t ofst
+        cdef uint32_t epos
+        if isinstance(group, int):
+            pass
+        else:
+            pass
+
+
+    def endpos(self, group=0):
+        if isinstance(group, int):
+            pass
+        else:
+            pass
+
 
     def substring(self, group=0):
         cdef uint8_t *res
@@ -102,7 +142,7 @@ cdef class Match:
         return result
 
 
-    def expand(self, replacement, startpos=0, uint32_t options=0):
+    def expand(self, replacement, offset=0, uint32_t options=0):
         """ Equivlanet to calling substitute with the provided match.
         The type of the subject determines the type of the returned string.
         """
@@ -111,7 +151,7 @@ cdef class Match:
         # Convert Python objects to C strings.
         repl = get_buffer(replacement)
         if PyUnicode_Check(self._subj.obj):
-            startpos = codepoint_to_codeunit(self._subj, startpos)
+            offset = codepoint_to_codeunit(self._subj, offset)
 
         # Dry run of substitution to get required replacement length.
         cdef uint8_t *res = NULL
@@ -119,7 +159,7 @@ cdef class Match:
         substitute_rc = pcre2_substitute(
             self._pattern._code,
             <pcre2_sptr_t>self._subj.buf, <size_t>self._subj.len,
-            startpos,
+            offset,
             options | PCRE2_SUBSTITUTE_OVERFLOW_LENGTH,
             self._mtch,
             NULL,
@@ -134,7 +174,7 @@ cdef class Match:
         substitute_rc = pcre2_substitute(
             self._pattern._code,
             <pcre2_sptr_t>self._subj.buf, <size_t>self._subj.len,
-            startpos,
+            offset,
             options,
             self._mtch,
             NULL,
