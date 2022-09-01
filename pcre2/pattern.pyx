@@ -236,7 +236,8 @@ cdef class Pattern:
 
 
     def name_dict(self):
-        """ Dictionary from capture group index to capture group name.
+        """ Returns a dictionary mapping capture group number to capture group
+        name.
         """
         # Get name table related information.
         name_count = self._pcre2_pattern_info_uint(PCRE2_INFO_NAMECOUNT)

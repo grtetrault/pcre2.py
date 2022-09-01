@@ -100,3 +100,54 @@ cdef class Match:
             result = result.decode("utf-8")
             
         return result
+
+
+    def expand(self, replacement, startpos=0, uint32_t options=0):
+        """ Equivlanet to calling substitute with the provided match.
+        The type of the subject determines the type of the returned string.
+        """
+        options = options | PCRE2_SUBSTITUTE_MATCHED
+
+        # Convert Python objects to C strings.
+        repl = get_buffer(replacement)
+        if PyUnicode_Check(self._subj.obj):
+            startpos = codepoint_to_codeunit(self._subj, startpos)
+
+        # Dry run of substitution to get required replacement length.
+        cdef uint8_t *res = NULL
+        cdef size_t res_len = 0
+        substitute_rc = pcre2_substitute(
+            self._pattern._code,
+            <pcre2_sptr_t>self._subj.buf, <size_t>self._subj.len,
+            startpos,
+            options | PCRE2_SUBSTITUTE_OVERFLOW_LENGTH,
+            self._mtch,
+            NULL,
+            <pcre2_sptr_t>repl.buf, <size_t>repl.len,
+            res, &res_len
+        )
+        if substitute_rc != PCRE2_ERROR_NOMEMORY and substitute_rc < 0:
+            raise_from_rc(substitute_rc, None)
+        
+        # Attempt string substitution.
+        res = <uint8_t *>malloc(res_len * sizeof(uint8_t))
+        substitute_rc = pcre2_substitute(
+            self._pattern._code,
+            <pcre2_sptr_t>self._subj.buf, <size_t>self._subj.len,
+            startpos,
+            options,
+            self._mtch,
+            NULL,
+            <pcre2_sptr_t>repl.buf, <size_t>repl.len,
+            res, &res_len
+        )
+        if substitute_rc < 0:
+            raise_from_rc(substitute_rc, None)
+
+        # Clean up result and convert to unicode as appropriate.
+        result = (<pcre2_sptr_t>res)[:res_len]
+        result = result.strip(b"\x00")
+        if PyUnicode_Check(self._subj.obj):
+            result = result.decode("utf-8")
+            
+        return result
