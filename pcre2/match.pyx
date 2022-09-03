@@ -100,19 +100,73 @@ cdef class Match:
     # ======================= #
 
     def startpos(self, group=0):
-        cdef uint32_t ofst
-        cdef uint32_t epos
+        """
+        """
+        ovec_count = pcre2_get_ovector_count(self._mtch)
+        ovec_table = pcre2_get_ovector_pointer(self._mtch)
+        
+        cdef int grp_num
+        cdef pcre2_sptr_t first_entry
+        cdef pcre2_sptr_t last_entry
         if isinstance(group, int):
-            pass
+            grp_num = group
         else:
-            pass
+            grp_name = get_buffer(group)
+            pcre2_substring_nametable_scan(
+                self._pattern._code,
+                <pcre2_sptr_t>grp_name.buf,
+                &first_entry,
+                &last_entry
+            )
+            grp_num = (first_entry[0] << 8) | first_entry[1]
+            if grp_num < 0:
+                raise_from_rc(grp_num, None)
+            PyBuffer_Release(grp_name)
+
+        if grp_num > <int>ovec_count:
+            raise ValueError("Group referenced out of bounds.")
+        start = self._ofst + ovec_table[2 * grp_num]
+
+        # Convert to code unit index as necessary.
+        if PyUnicode_Check(self._subj.obj):
+            start = codeunit_to_codepoint(self._subj, start)
+
+        return start
 
 
     def endpos(self, group=0):
+        """
+        """
+        ovec_count = pcre2_get_ovector_count(self._mtch)
+        ovec_table = pcre2_get_ovector_pointer(self._mtch)
+        
+        cdef int grp_num
+        cdef pcre2_sptr_t first_entry
+        cdef pcre2_sptr_t last_entry
         if isinstance(group, int):
-            pass
+            grp_num = group
         else:
-            pass
+            grp_name = get_buffer(group)
+            pcre2_substring_nametable_scan(
+                self._pattern._code,
+                <pcre2_sptr_t>grp_name.buf,
+                &first_entry,
+                &last_entry
+            )
+            grp_num = (first_entry[0] << 8) | first_entry[1]
+            if grp_num < 0:
+                raise_from_rc(grp_num, None)
+            PyBuffer_Release(grp_name)
+
+        if grp_num > <int>ovec_count:
+            raise ValueError("Group referenced out of bounds.")
+        start = self._ofst + ovec_table[2 * grp_num + 1]
+
+        # Convert to code unit index as necessary.
+        if PyUnicode_Check(self._subj.obj):
+            start = codeunit_to_codepoint(self._subj, start)
+
+        return start
 
 
     def substring(self, group=0):
@@ -132,6 +186,7 @@ cdef class Match:
             )
             if get_rc < 0:
                 raise_from_rc(get_rc, None)
+            PyBuffer_Release(grp_name)
 
         # Clean up result and convert to unicode as appropriate.
         result = (<pcre2_sptr_t>res)[:res_len]
@@ -183,6 +238,7 @@ cdef class Match:
         )
         if substitute_rc < 0:
             raise_from_rc(substitute_rc, None)
+        PyBuffer_Release(repl)
 
         # Clean up result and convert to unicode as appropriate.
         result = (<pcre2_sptr_t>res)[:res_len]

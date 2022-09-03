@@ -352,6 +352,8 @@ cdef class Pattern:
         )
         if substitute_rc < 0:
             raise_from_rc(substitute_rc, None)
+        PyBuffer_Release(subj)
+        PyBuffer_Release(repl)
 
         # Clean up result and convert to unicode as appropriate.
         result = (<pcre2_sptr_t>res)[:res_len]

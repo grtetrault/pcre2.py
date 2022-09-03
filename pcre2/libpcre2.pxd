@@ -390,6 +390,11 @@ cdef extern from "pcre2.h":
         uint32_t what,
         void *where
     )
+
+    int pcre2_substring_number_from_name(
+        const pcre2_code_t *code,
+        pcre2_sptr_t name
+    )
     
     # Matching and match data functions.
     pcre2_match_data_t * pcre2_match_data_create(
@@ -413,6 +418,17 @@ cdef extern from "pcre2.h":
     )
     
     void pcre2_match_data_free(pcre2_match_data_t *match_data)
+
+    uint32_t pcre2_get_ovector_count(pcre2_match_data_t *match_data)
+
+    size_t *pcre2_get_ovector_pointer(pcre2_match_data_t *match_data)
+
+    int pcre2_substring_nametable_scan(
+        const pcre2_code_t *code,
+        pcre2_sptr_t name,
+        pcre2_sptr_t *first,
+        pcre2_sptr_t *last
+    )
 
     # String extraction from match data blocks.
     int pcre2_substring_get_byname(

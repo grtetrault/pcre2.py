@@ -34,7 +34,9 @@ cdef Py_buffer * get_buffer(object obj):
     # Process unicode and derivative objects.
     if PyUnicode_Check(obj):
         sptr = PyUnicode_AsUTF8AndSize(obj, &length)
-        PyBuffer_FillInfo(pybuf, obj, <void *>sptr, length, 1, 0)
+        fill_buf_rc = PyBuffer_FillInfo(pybuf, obj, <void *>sptr, length, 1, 0)
+        if fill_buf_rc < 0:
+            raise ValueError("Could not fill internal buffer.")
     
     # Handle all other bytes-like objects.
     else:
