@@ -12,6 +12,7 @@ from .utils cimport *
 from .libpcre2 cimport *
 from .match cimport Match
 from .consts import BsrChar, NewlineChar
+from .exceptions import MatchError
 
 
 cdef class Pattern:
@@ -273,6 +274,14 @@ cdef class Pattern:
     #         Methods         #
     # ======================= #
 
+    def jit_compile(self):
+        """
+        """
+        jit_compile_rc = pcre2_jit_compile(self._code, PCRE2_JIT_COMPLETE)
+        if jit_compile_rc < 0:
+            raise_from_rc(jit_compile_rc, None)
+
+
     def match(self, subject, size_t offset=0, uint32_t options=0):
         """
         """
@@ -305,12 +314,64 @@ cdef class Pattern:
         return Match._from_data(mtch, self, subj, offset, options)
 
 
-    def jit_compile(self):
+    def finditer(self, subject, size_t offset=0):
         """
+        options: Match options
         """
-        jit_compile_rc = pcre2_jit_compile(self._code, PCRE2_JIT_COMPLETE)
-        if jit_compile_rc < 0:
-            raise_from_rc(jit_compile_rc, None)
+        all_options = self._pcre2_pattern_info_uint(PCRE2_INFO_ALLOPTIONS)
+        is_utf = (all_options & PCRE2_UTF) != 0
+
+        newline = self._pcre2_pattern_info_uint(PCRE2_INFO_NEWLINE)
+        is_crlf_newline = (
+            newline == PCRE2_NEWLINE_ANY or
+            newline == PCRE2_NEWLINE_CRLF or
+            newline == PCRE2_NEWLINE_ANYCRLF
+        )
+        
+        subj_len = len(subject)
+        iter_offset = offset
+        options = <uint32_t>0
+        while iter_offset <= subj_len:
+            subj = get_buffer(subject)
+
+            # Attempt match of pattern onto subject.
+            try:
+                match = <Match>self.match(subject, iter_offset, options)
+                ovec_table = pcre2_get_ovector_pointer(match._mtch)
+                endpos = ovec_table[1]
+
+                # If the matched string is empty ensure next is not.
+                if endpos == iter_offset:
+                    options = options | PCRE2_NOTEMPTY_ATSTART | PCRE2_ANCHORED
+                    
+                # Otherwise reset options and allow for empty matches.
+                else:
+                    options = 0
+
+                iter_offset = endpos
+                yield match
+
+            except MatchError:
+                iter_offset += 1
+
+                # If we are at a CRLF that is matched as a newline.
+                if (
+                    is_crlf_newline and 
+                    (iter_offset < subj.len - 1) and
+                    subj.buf[iter_offset] == b"\r" and
+                    subj.buf[iter_offset + 1] == b"\n"
+                ):
+                    iter_offset += 1
+  
+                # Otherwise ensure we advance a whole codepoint.
+                elif is_utf:
+                    while iter_offset < subj.len:
+                        if (((<uint8_t *>subj.buf)[iter_offset]) & 0xC0) != 0x80:
+                            break
+                        iter_offset += 1
+
+                # Reset options so empty strings can match at next offset.
+                options = 0
 
 
     def substitute(self, replacement, subject, size_t offset=0, uint32_t options=0):

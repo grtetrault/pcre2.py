@@ -124,7 +124,7 @@ cdef class Match:
 
         if grp_num > <int>ovec_count:
             raise ValueError("Group referenced out of bounds.")
-        start = self._ofst + ovec_table[2 * grp_num]
+        start = ovec_table[2 * grp_num]
 
         # Convert to code unit index as necessary.
         if PyUnicode_Check(self._subj.obj):
@@ -159,13 +159,13 @@ cdef class Match:
 
         if grp_num > <int>ovec_count:
             raise ValueError("Group referenced out of bounds.")
-        start = self._ofst + ovec_table[2 * grp_num + 1]
+        end = ovec_table[2 * grp_num + 1]
 
         # Convert to code unit index as necessary.
         if PyUnicode_Check(self._subj.obj):
-            start = codeunit_to_codepoint(self._subj, start)
+            end = codeunit_to_codepoint(self._subj, end)
 
-        return start
+        return end
 
 
     def substring(self, group=0):
