@@ -316,7 +316,6 @@ cdef class Pattern:
 
     def finditer(self, subject, size_t offset=0):
         """
-        options: Match options
         """
         all_options = self._pcre2_pattern_info_uint(PCRE2_INFO_ALLOPTIONS)
         is_utf = (all_options & PCRE2_UTF) != 0
@@ -328,11 +327,16 @@ cdef class Pattern:
             newline == PCRE2_NEWLINE_ANYCRLF
         )
         
-        subj_len = len(subject)
         iter_offset = offset
         options = <uint32_t>0
-        while iter_offset <= subj_len:
+        while True:
+            print(iter_offset)
+            # Ensure all new match data blocks created own their buffers to 
+            # avoid multiple buffer releases. Note that Python strings cache
+            # their UTF-8 encodings, so no repeated work is done.
             subj = get_buffer(subject)
+            if iter_offset > subj.len:
+                break
 
             # Attempt match of pattern onto subject.
             try:
@@ -340,14 +344,12 @@ cdef class Pattern:
                 ovec_table = pcre2_get_ovector_pointer(match._mtch)
                 endpos = ovec_table[1]
 
-                # If the matched string is empty ensure next is not.
-                if endpos == iter_offset:
-                    options = options | PCRE2_NOTEMPTY_ATSTART | PCRE2_ANCHORED
-                    
-                # Otherwise reset options and allow for empty matches.
-                else:
-                    options = 0
-
+                # If the matched string is empty ensure next is not. Otherwise
+                # reset options and allow for empty matches.
+                options = (
+                    options | PCRE2_NOTEMPTY_ATSTART | PCRE2_ANCHORED
+                    if endpos == iter_offset else 0
+                )
                 iter_offset = endpos
                 yield match
 
