@@ -15,7 +15,6 @@ from .pattern cimport Pattern
 
 cdef class Match:
     """
-
     See match.pxd for attribute definitions.
 
     Attributes:
@@ -170,6 +169,8 @@ cdef class Match:
 
 
     def substring(self, group=0):
+        """
+        """
         cdef uint8_t *res
         cdef size_t res_len
         if isinstance(group, int):
@@ -195,6 +196,12 @@ cdef class Match:
             result = result.decode("utf-8")
             
         return result
+
+
+    def __getitem__(self, group):
+        """
+        """
+        return self.substring(group)
 
 
     def expand(self, replacement, offset=0, uint32_t options=0):
