@@ -292,10 +292,7 @@ cdef class Pattern:
             offset = codepoint_to_codeunit(subj, offset)
 
         # Allocate memory for match.
-        mtch = pcre2_match_data_create_from_pattern(
-            self._code,
-            NULL
-        )
+        mtch = pcre2_match_data_create_from_pattern(self._code, NULL)
         if not mtch:
             raise MemoryError()
 
@@ -314,7 +311,7 @@ cdef class Pattern:
         return Match._from_data(mtch, self, subj, offset, options)
 
 
-    def finditer(self, subject, size_t offset=0):
+    def match_iter(self, subject, size_t offset=0):
         """
         """
         all_options = self._pcre2_pattern_info_uint(PCRE2_INFO_ALLOPTIONS)
@@ -327,21 +324,39 @@ cdef class Pattern:
             newline == PCRE2_NEWLINE_ANYCRLF
         )
         
+        # Convert indices accordingly.
+        if PyUnicode_Check(subject):
+            subj = get_buffer(subject)
+            offset = codepoint_to_codeunit(subj, offset)
+            PyBuffer_Release(subj)
+
         iter_offset = offset
         options = <uint32_t>0
         while True:
-            print(iter_offset)
             # Ensure all new match data blocks created own their buffers to 
             # avoid multiple buffer releases. Note that Python strings cache
             # their UTF-8 encodings, so no repeated work is done.
             subj = get_buffer(subject)
-            if iter_offset > subj.len:
+            if iter_offset >= subj.len:
                 break
 
             # Attempt match of pattern onto subject.
             try:
-                match = <Match>self.match(subject, iter_offset, options)
-                ovec_table = pcre2_get_ovector_pointer(match._mtch)
+                # Allocate memory for match.
+                mtch = pcre2_match_data_create_from_pattern(self._code, NULL)
+                if not mtch:
+                    raise MemoryError()
+
+                # Attempt match of pattern onto subject.
+                match_rc = pcre2_match(
+                    self._code, <pcre2_sptr_t>subj.buf, <size_t>subj.len,
+                    iter_offset, options, mtch, NULL
+                )
+                if match_rc < 0:
+                    raise_from_rc(match_rc, None)
+
+                # Check where endpoint is.
+                ovec_table = pcre2_get_ovector_pointer(mtch)
                 endpos = ovec_table[1]
 
                 # If the matched string is empty ensure next is not. Otherwise
@@ -351,26 +366,27 @@ cdef class Pattern:
                     if endpos == iter_offset else 0
                 )
                 iter_offset = endpos
-                yield match
+                yield Match._from_data(mtch, self, subj, offset, options)
 
             except MatchError:
-                iter_offset += 1
-
                 # If we are at a CRLF that is matched as a newline.
                 if (
                     is_crlf_newline and 
-                    (iter_offset < subj.len - 1) and
+                    iter_offset < (subj.len - 1) and
                     subj.buf[iter_offset] == b"\r" and
                     subj.buf[iter_offset + 1] == b"\n"
                 ):
-                    iter_offset += 1
-  
+                    iter_offset += 2
+
                 # Otherwise ensure we advance a whole codepoint.
                 elif is_utf:
                     while iter_offset < subj.len:
+                        iter_offset += 1
                         if (((<uint8_t *>subj.buf)[iter_offset]) & 0xC0) != 0x80:
                             break
-                        iter_offset += 1
+
+                else:
+                    iter_offset += 1
 
                 # Reset options so empty strings can match at next offset.
                 options = 0
