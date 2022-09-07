@@ -287,8 +287,8 @@ cdef class Pattern:
         """
         is_patn_utf = <bint>PyUnicode_Check(self._patn.obj)
         is_subj_utf = <bint>PyUnicode_Check(subject)
-        if is_patn_utf ^ is_subj_utf and not (is_patn_utf | is_subj_utf):
-            if is_pattern_utf:
+        if (is_patn_utf ^ is_subj_utf) and not (is_patn_utf | is_subj_utf):
+            if is_patn_utf:
                 raise ValueError("Cannot use a string pattern on a bytes-like subject.")
             else:
                 raise ValueError("Cannot use a bytes-like pattern on a string subject.")
@@ -367,13 +367,13 @@ cdef class Pattern:
         is_patn_utf = <bint>PyUnicode_Check(self._patn.obj)
         is_subj_utf = <bint>PyUnicode_Check(subject)
         is_repl_utf = <bint>PyUnicode_Check(replacement)
-        if is_subj_utf ^ is_repl_utf and not (is_subj_utf | is_repl_utf):
-            if is_subject_utf:
+        if (is_subj_utf ^ is_repl_utf) and not (is_subj_utf | is_repl_utf):
+            if is_subj_utf:
                 raise ValueError("Cannot use a string subject with a bytes-like replacement.")
             else:
                 raise ValueError("Cannot use a bytes-like subject with a string replacement.")
 
-        if is_patn_utf ^ is_subj_utf and not (is_patn_utf | is_subj_utf):
+        if (is_patn_utf ^ is_subj_utf) and not (is_patn_utf | is_subj_utf):
             if is_patn_utf:
                 raise ValueError("Cannot use a string pattern on a bytes-like subject.")
             else:
