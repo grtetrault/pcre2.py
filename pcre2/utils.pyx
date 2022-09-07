@@ -53,8 +53,8 @@ cdef Py_buffer * get_buffer(object obj):
 cdef size_t codeunit_to_codepoint(Py_buffer *pybuf, size_t codeunit_idx):
     """ Convert a code unit index to a code point index.
     """
-    cdef size_t cur_codeunit_idx = 0
-    cdef size_t cur_codepoint_idx = 0
+    cur_codeunit_idx = <size_t>0
+    cur_codepoint_idx = <size_t>0
     for cur_codeunit_idx in range(codeunit_idx):
         if (((<uint8_t *>pybuf.buf)[cur_codeunit_idx]) & 0xC0) != 0x80:
             cur_codepoint_idx += 1
@@ -64,14 +64,12 @@ cdef size_t codeunit_to_codepoint(Py_buffer *pybuf, size_t codeunit_idx):
 cdef size_t codepoint_to_codeunit(Py_buffer *pybuf, size_t codepoint_idx):
     """
     """
-    cdef size_t cur_codeunit_idx = 0
-    cdef size_t cur_codepoint_idx = 0
+    cur_codeunit_idx = <size_t>0
+    cur_codepoint_idx = <size_t>0
     while cur_codepoint_idx < codepoint_idx:
+        cur_codeunit_idx += 1
         if (((<uint8_t *>pybuf.buf)[cur_codeunit_idx]) & 0xC0) != 0x80:
             cur_codepoint_idx += 1
-            if cur_codepoint_idx == codepoint_idx:
-                break
-        cur_codeunit_idx += 1
     return cur_codeunit_idx
 
 

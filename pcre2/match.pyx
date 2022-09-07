@@ -98,7 +98,7 @@ cdef class Match:
     #         Methods         #
     # ======================= #
 
-    def startpos(self, group=0):
+    def start(self, group=0):
         """
         """
         ovec_count = pcre2_get_ovector_count(self._mtch)
@@ -133,7 +133,7 @@ cdef class Match:
         return start
 
 
-    def endpos(self, group=0):
+    def end(self, group=0):
         """
         """
         ovec_count = pcre2_get_ovector_count(self._mtch)
