@@ -285,6 +285,14 @@ cdef class Pattern:
     def match(self, subject, size_t offset=0, uint32_t options=0):
         """
         """
+        is_pattern_unicode = <bint>PyUnicode_Check(self._patn.obj)
+        is_subject_unicode = <bint>PyUnicode_Check(subject)
+        if is_pattern_unicode ^ is_subject_unicode:
+            if is_pattern_unicode:
+                raise ValueError("Cannot use a string pattern on a bytes-like subject.")
+            else:
+                raise ValueError("Cannot use a bytes-like pattern on a string subject.")
+
         subj = get_buffer(subject)
 
         # Convert indices accordingly.
@@ -298,12 +306,8 @@ cdef class Pattern:
 
         # Attempt match of pattern onto subject.
         match_rc = pcre2_match(
-            self._code,
-            <pcre2_sptr_t>subj.buf, <size_t>subj.len,
-            offset,
-            options,
-            mtch,
-            NULL
+            self._code, <pcre2_sptr_t>subj.buf, <size_t>subj.len, offset,
+            options, mtch, NULL
         )
         if match_rc < 0:
             raise_from_rc(match_rc, None)
@@ -360,6 +364,21 @@ cdef class Pattern:
     def substitute(self, replacement, subject, size_t offset=0, uint32_t options=0):
         """ The type of the subject determines the type of the returned string.
         """
+        is_pattern_unicode = <bint>PyUnicode_Check(self._patn.obj)
+        is_subject_unicode = <bint>PyUnicode_Check(subject)
+        is_replacement_unicode = <bint>PyUnicode_Check(replacement)
+        if is_subject_unicode ^ is_replacement_unicode:
+            if is_subject_unicode:
+                raise ValueError("Cannot use a string subject with a bytes-like replacement.")
+            else:
+                raise ValueError("Cannot use a bytes-like subject with a string replacement.")
+
+        if is_pattern_unicode ^ is_subject_unicode:
+            if is_pattern_unicode:
+                raise ValueError("Cannot use a string pattern on a bytes-like subject.")
+            else:
+                raise ValueError("Cannot use a bytes-like pattern on a string subject.")
+
         # Convert Python objects to C strings.
         subj = get_buffer(subject)
         repl = get_buffer(replacement)
