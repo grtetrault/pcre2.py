@@ -330,7 +330,7 @@ cdef class Pattern:
 
         iter_offset = offset
         options = <uint32_t>0
-        while iter_offset < len(subject):
+        while iter_offset <= len(subject):
             # Attempt match of pattern onto subject.
             try:
                 # Allocate memory for match.
