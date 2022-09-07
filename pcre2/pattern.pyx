@@ -285,10 +285,10 @@ cdef class Pattern:
     def match(self, subject, size_t offset=0, uint32_t options=0):
         """
         """
-        is_pattern_unicode = <bint>PyUnicode_Check(self._patn.obj)
-        is_subject_unicode = <bint>PyUnicode_Check(subject)
-        if is_pattern_unicode ^ is_subject_unicode:
-            if is_pattern_unicode:
+        is_patn_utf = <bint>PyUnicode_Check(self._patn.obj)
+        is_subj_utf = <bint>PyUnicode_Check(subject)
+        if is_patn_utf ^ is_subj_utf and not (is_patn_utf | is_subj_utf):
+            if is_pattern_utf:
                 raise ValueError("Cannot use a string pattern on a bytes-like subject.")
             else:
                 raise ValueError("Cannot use a bytes-like pattern on a string subject.")
@@ -364,17 +364,17 @@ cdef class Pattern:
     def substitute(self, replacement, subject, size_t offset=0, uint32_t options=0):
         """ The type of the subject determines the type of the returned string.
         """
-        is_pattern_unicode = <bint>PyUnicode_Check(self._patn.obj)
-        is_subject_unicode = <bint>PyUnicode_Check(subject)
-        is_replacement_unicode = <bint>PyUnicode_Check(replacement)
-        if is_subject_unicode ^ is_replacement_unicode:
-            if is_subject_unicode:
+        is_patn_utf = <bint>PyUnicode_Check(self._patn.obj)
+        is_subj_utf = <bint>PyUnicode_Check(subject)
+        is_repl_utf = <bint>PyUnicode_Check(replacement)
+        if is_subj_utf ^ is_repl_utf and not (is_subj_utf | is_repl_utf):
+            if is_subject_utf:
                 raise ValueError("Cannot use a string subject with a bytes-like replacement.")
             else:
                 raise ValueError("Cannot use a bytes-like subject with a string replacement.")
 
-        if is_pattern_unicode ^ is_subject_unicode:
-            if is_pattern_unicode:
+        if is_patn_utf ^ is_subj_utf and not (is_patn_utf | is_subj_utf):
+            if is_patn_utf:
                 raise ValueError("Cannot use a string pattern on a bytes-like subject.")
             else:
                 raise ValueError("Cannot use a bytes-like pattern on a string subject.")
