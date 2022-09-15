@@ -85,7 +85,11 @@ class Pcre2BuildExt(setuptools.command.build_ext.build_ext):
     pcre2_static_lib = pcre2_cwd.joinpath(".libs/libpcre2-8.a")
     pcre2_compile_args = ["-DPCRE2_CODE_UNIT_WIDTH=8"]
     pcre2_build_cmds = [
-        ["./configure", "--enable-jit=auto",  f"--prefix={pcre2_cwd}"],
+        [
+            "./configure",
+            "--enable-jit",
+            f"--prefix={pcre2_cwd}"
+        ],
         ["make"]
     ]
 

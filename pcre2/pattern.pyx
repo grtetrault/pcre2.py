@@ -99,27 +99,13 @@ cdef class Pattern:
         """
         return self._patn.obj
 
-    
+
     @property
     def options(self):
-        """ Return the options the object was compiled with.
-        """
-        return self._opts
-
-
-    @property
-    def all_options(self):
         """ Returns the compile options as modified by any top-level (*XXX)
         option settings such as (*UTF) at the start of the pattern itself.
         """
         return self._pcre2_pattern_info_uint(PCRE2_INFO_ALLOPTIONS)
-
-
-    @property
-    def backref_max(self):
-        """ Return the number of the highest backreference in the pattern.
-        """
-        return self._pcre2_pattern_info_uint(PCRE2_INFO_BACKREFMAX)
 
 
     @property
@@ -140,77 +126,11 @@ cdef class Pattern:
 
 
     @property
-    def depth_limit(self):
-        """ If the pattern set a backtracking depth limit by including an item
-        of the form (*LIMIT_DEPTH=nnnn) at the start, the value is returned. 
-        """
-        return self._pcre2_pattern_info_uint(PCRE2_INFO_DEPTHLIMIT)
-
-
-    @property
-    def has_blackslash_c(self):
-        """ Return True if the pattern contains any instances of \C, otherwise
-        False. 
-        """
-        return self._pcre2_pattern_info_bint(PCRE2_INFO_HASBACKSLASHC)
-
-
-    @property
-    def has_crorlf(self):
-        """ Return True if the pattern contains any explicit matches for CR or
-        LF characters, otherwise False. 
-        """
-        return self._pcre2_pattern_info_bint(PCRE2_INFO_HASCRORLF)
-
-
-    @property
-    def j_changed(self):
-        """ Return True if the (?J) or (?-J) option setting is used in the
-        pattern, otherwise False. 
-        """
-        return self._pcre2_pattern_info_bint(PCRE2_INFO_JCHANGED)
-
-
-    @property
     def jit_size(self):
         """ If the compiled pattern was successfully JIT compiled, return the
         size of the JIT compiled code, otherwise return zero.
         """
         return self._pcre2_pattern_info_uint(PCRE2_INFO_JITSIZE)
-    
-
-    @property
-    def match_empty(self):
-        """ Return True if the pattern might match an empty string, otherwise
-        False.
-        """
-        return self._pcre2_pattern_info_bint(PCRE2_INFO_MATCHEMPTY)
-
-
-    @property
-    def match_limit(self):
-        """ If the pattern set a match limit by including an item of the form
-        (*LIMIT_MATCH=nnnn) at the start, the value is returned. 
-        """
-        return self._pcre2_pattern_info_uint(PCRE2_INFO_MATCHLIMIT)
-
-
-    @property
-    def max_lookbehind(self):
-        """ A lookbehind assertion moves back a certain number of characters
-        (not code units) when it starts to process each of its branches. This
-        request returns the largest of these backward moves.
-        """
-        return self._pcre2_pattern_info_uint(PCRE2_INFO_MAXLOOKBEHIND)
-
-
-    @property
-    def min_length(self):
-        """ If a minimum length for matching subject strings was computed, its
-        value is returned. Otherwise the returned value is 0. This value is not
-        computed when CompileOption.NO_START_OPTIMIZE is set.
-        """
-        return self._pcre2_pattern_info_uint(PCRE2_INFO_MINLENGTH)
 
     
     @property
@@ -282,44 +202,64 @@ cdef class Pattern:
             raise_from_rc(jit_compile_rc, None)
 
 
-    def match(self, subject, size_t offset=0, uint32_t options=0):
+    cdef pcre2_match_data_t * _match(
+        self, Py_buffer *subj, size_t ofst, uint32_t opts, int *rc
+    ):
+        """ Returns error code.
+        """
+        # Allocate memory for match.
+        mtch = pcre2_match_data_create_from_pattern(self._code, NULL)
+        if mtch is NULL:
+            rc[0] = PCRE2_ERROR_NOMEMORY
+            return NULL
+
+        # Attempt match of pattern onto subject.
+        rc[0] = pcre2_match(
+            self._code,
+            <pcre2_sptr_t>subj.buf, <size_t>subj.len,
+            ofst, opts, mtch, NULL
+        )
+        return mtch
+
+
+    def match(self, subject, offset=0, options=0):
         """
         """
-        is_patn_utf = <bint>PyUnicode_Check(self._patn.obj)
-        is_subj_utf = <bint>PyUnicode_Check(subject)
+        cdef bint is_patn_utf = PyUnicode_Check(self._patn.obj)
+        cdef bint is_subj_utf = PyUnicode_Check(subject)
         if is_patn_utf ^ is_subj_utf:
             if is_patn_utf:
                 raise ValueError("Cannot use a string pattern on a bytes-like subject.")
             else:
                 raise ValueError("Cannot use a bytes-like pattern on a string subject.")
 
-        subj = get_buffer(subject)
+        cdef Py_buffer *subj = get_buffer(subject)
+        cdef size_t obj_ofst = <size_t>offset
+        cdef size_t ofst = obj_ofst
+        cdef uint32_t opts = <uint32_t>options
 
         # Convert indices accordingly.
-        if PyUnicode_Check(subject):
-            offset = codepoint_to_codeunit(subj, offset)
+        if is_subj_utf:
+            ofst, obj_ofst = codepoint_to_codeunit(subj, obj_ofst, 0, 0)
 
-        # Allocate memory for match.
-        mtch = pcre2_match_data_create_from_pattern(self._code, NULL)
-        if not mtch:
-            raise MemoryError()
-
-        # Attempt match of pattern onto subject.
-        match_rc = pcre2_match(
-            self._code, <pcre2_sptr_t>subj.buf, <size_t>subj.len, offset,
-            options, mtch, NULL
-        )
+        cdef int match_rc = 0 
+        cdef pcre2_match_data_t *mtch = self._match(subj, ofst, opts, &match_rc)
         if match_rc < 0:
             raise_from_rc(match_rc, None)
             
-        return Match._from_data(mtch, self, subj, offset, options)
+        return Match._from_data(mtch, self, subj, ofst, opts)
 
 
-    def match_iter(self, subject, size_t offset=0):
+    def match_iter(self, subject, offset=0):
         """
         """
-        all_options = self._pcre2_pattern_info_uint(PCRE2_INFO_ALLOPTIONS)
-        is_utf = (all_options & PCRE2_UTF) != 0
+        cdef bint is_patn_utf = PyUnicode_Check(self._patn.obj)
+        cdef bint is_subj_utf = PyUnicode_Check(subject)
+        if is_patn_utf ^ is_subj_utf:
+            if is_patn_utf:
+                raise ValueError("Cannot use a string pattern on a bytes-like subject.")
+            else:
+                raise ValueError("Cannot use a bytes-like pattern on a string subject.")
 
         newline = self._pcre2_pattern_info_uint(PCRE2_INFO_NEWLINE)
         is_crlf_newline = (
@@ -328,37 +268,57 @@ cdef class Pattern:
             newline == PCRE2_NEWLINE_ANYCRLF
         )
 
-        iter_offset = offset
-        options = <uint32_t>0
-        while iter_offset <= len(subject):
+        cdef size_t next_obj_ofst = <size_t>offset
+        cdef size_t obj_ofst = 0
+        cdef size_t ofst = 0
+
+        cdef uint32_t opts = 0
+        cdef int match_rc = 0
+        cdef size_t subj_len = <size_t>len(subject)
+        while next_obj_ofst <= subj_len:
+            subj = get_buffer(subject)
+
+            # Convert indices accordingly.
+            if is_subj_utf and next_obj_ofst > obj_ofst:
+                ofst, obj_ofst = codepoint_to_codeunit(
+                    subj, next_obj_ofst, ofst, obj_ofst
+                )
+
             # Attempt match of pattern onto subject.
-            try:
-                # Allocate memory for match.
-                match = <Match>self.match(subject, iter_offset, options)
-                yield match
+            mtch = self._match(subj, ofst, opts, &match_rc)
 
-                # If the matched string is empty ensure next is not. Otherwise
-                # reset options and allow for empty matches.
-                if iter_offset == match.end():
-                    options = PCRE2_NOTEMPTY_ATSTART | PCRE2_ANCHORED
-                else:
-                    options = 0
-                    iter_offset = match.end()
-
-            except MatchError:
-                iter_offset += 1
+            if match_rc == PCRE2_ERROR_NOMATCH:
+                next_obj_ofst += 1
 
                 # If we are at a CRLF that is matched as a newline.
                 if (
                     is_crlf_newline and 
-                    iter_offset < (len(subject) - 1) and
-                    ord(subject[iter_offset]) == ord("\r") and
-                    ord(subject[iter_offset + 1]) == ord("\n")
+                    (obj_ofst + 1) < subj_len and
+                    ord(subject[obj_ofst]) == ord("\r") and
+                    ord(subject[obj_ofst + 1]) == ord("\n")
                 ):
-                    iter_offset += 1
+                    next_obj_ofst += 1
 
                 # Reset options so empty strings can match at next offset.
-                options = 0
+                opts = 0
+            elif match_rc < 0:
+                raise_from_rc(match_rc, None)
+            else:
+                # If the matched string is empty ensure next is not. Otherwise
+                # reset options and allow for empty matches.
+                ovec_table = pcre2_get_ovector_pointer(mtch)
+                mtch_end = ovec_table[1]
+
+                if ofst == mtch_end:
+                    opts = PCRE2_NOTEMPTY_ATSTART | PCRE2_ANCHORED
+                else:
+                    opts = 0
+                    ofst, obj_ofst = codeunit_to_codepoint(
+                        subj, mtch_end, ofst, obj_ofst
+                    )
+                    next_obj_ofst = obj_ofst
+
+                yield Match._from_data(mtch, self, subj, ofst, opts)
 
 
     def substitute(self, replacement, subject, size_t offset=0, uint32_t options=0):
@@ -379,11 +339,14 @@ cdef class Pattern:
             else:
                 raise ValueError("Cannot use a bytes-like pattern on a string subject.")
 
-        # Convert Python objects to C strings.
+        # Convert Python objects to C types.
         subj = get_buffer(subject)
         repl = get_buffer(replacement)
-        if PyUnicode_Check(subject):
-            offset = codepoint_to_codeunit(subj, offset)
+        cdef size_t obj_ofst = <size_t>offset
+        cdef size_t ofst = obj_ofst
+        cdef uint32_t opts = <uint32_t>options
+        if is_subj_utf:
+            ofst, obj_ofst = codepoint_to_codeunit(subj, obj_ofst, 0, 0)
 
         # Dry run of substitution to get required replacement length.
         cdef uint8_t *res = NULL
@@ -391,14 +354,16 @@ cdef class Pattern:
         substitute_rc = pcre2_substitute(
             self._code,
             <pcre2_sptr_t>subj.buf, <size_t>subj.len,
-            offset,
-            options | PCRE2_SUBSTITUTE_OVERFLOW_LENGTH,
+            ofst,
+            opts | PCRE2_SUBSTITUTE_OVERFLOW_LENGTH,
             NULL,
             NULL,
             <pcre2_sptr_t>repl.buf, <size_t>repl.len,
             res, &res_len
         )
         if substitute_rc != PCRE2_ERROR_NOMEMORY and substitute_rc < 0:
+            PyBuffer_Release(subj)
+            PyBuffer_Release(repl)
             raise_from_rc(substitute_rc, None)
         
         # Attempt string substitution.
@@ -406,22 +371,24 @@ cdef class Pattern:
         substitute_rc = pcre2_substitute(
             self._code,
             <pcre2_sptr_t>subj.buf, <size_t>subj.len,
-            offset,
-            options,
+            ofst,
+            opts,
             NULL,
             NULL,
             <pcre2_sptr_t>repl.buf, <size_t>repl.len,
             res, &res_len
         )
         if substitute_rc < 0:
+            PyBuffer_Release(subj)
+            PyBuffer_Release(repl)
             raise_from_rc(substitute_rc, None)
-        PyBuffer_Release(subj)
-        PyBuffer_Release(repl)
 
         # Clean up result and convert to unicode as appropriate.
         result = (<pcre2_sptr_t>res)[:res_len]
         result = result.strip(b"\x00")
         if PyUnicode_Check(subject):
             result = result.decode("utf-8")
-            
+        
+        PyBuffer_Release(subj)
+        PyBuffer_Release(repl)
         return result

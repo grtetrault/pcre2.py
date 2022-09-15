@@ -4,15 +4,21 @@
 from libc.stdlib cimport malloc
 from libc.stdint cimport uint8_t
 from cpython cimport Py_buffer
-from cpython.unicode cimport PyUnicode_Check
 from cpython.buffer cimport (
     PyObject_CheckBuffer,
     PyBuffer_IsContiguous,
     PyObject_GetBuffer,
     PyBuffer_FillInfo
 )
+from cpython.unicode cimport (
+    PyUnicode_Check
+)
 cdef extern from "Python.h":
-    # Unicode string handling.
+    int PyUnicode_1BYTE_KIND
+    int PyUnicode_2BYTE_KIND
+    int PyUnicode_4BYTE_KIND
+    unsigned int PyUnicode_KIND(object o)
+    void *PyUnicode_DATA(object o)
     const char * PyUnicode_AsUTF8AndSize(object unicode, Py_ssize_t *size)
 
 # Local imports.
@@ -50,27 +56,32 @@ cdef Py_buffer * get_buffer(object obj):
     return pybuf
 
 
-cdef size_t codeunit_to_codepoint(Py_buffer *pybuf, size_t codeunit_idx):
+cdef (size_t, size_t) codeunit_to_codepoint(
+    Py_buffer *pybuf,
+    size_t codeunit_idx,
+    size_t cur_codeunit_idx, size_t cur_codepoint_idx
+):
     """ Convert a code unit index to a code point index.
     """
-    cur_codeunit_idx = <size_t>0
-    cur_codepoint_idx = <size_t>0
-    for cur_codeunit_idx in range(codeunit_idx):
+    while cur_codeunit_idx < codeunit_idx:
         if (((<uint8_t *>pybuf.buf)[cur_codeunit_idx]) & 0xC0) != 0x80:
             cur_codepoint_idx += 1
-    return cur_codepoint_idx
+        cur_codeunit_idx += 1
+    return cur_codeunit_idx, cur_codepoint_idx
 
     
-cdef size_t codepoint_to_codeunit(Py_buffer *pybuf, size_t codepoint_idx):
+cdef (size_t, size_t) codepoint_to_codeunit(
+    Py_buffer *pybuf,
+    size_t codepoint_idx,
+    size_t cur_codeunit_idx, size_t cur_codepoint_idx
+):
     """
     """
-    cur_codeunit_idx = <size_t>0
-    cur_codepoint_idx = <size_t>0
     while cur_codepoint_idx < codepoint_idx:
         cur_codeunit_idx += 1
         if (((<uint8_t *>pybuf.buf)[cur_codeunit_idx]) & 0xC0) != 0x80:
             cur_codepoint_idx += 1
-    return cur_codeunit_idx
+    return cur_codeunit_idx, cur_codepoint_idx
 
 
 cdef raise_from_rc(int errorcode, object context_msg):

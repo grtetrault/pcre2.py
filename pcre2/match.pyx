@@ -65,7 +65,7 @@ cdef class Match:
         match._mtch = mtch
         match._pattern = pattern
         match._subj = subj
-        match._ofst = ofst
+        match._ofst = ofst # Code unit offset
         match._opts = opts
         return match
 
@@ -77,11 +77,6 @@ cdef class Match:
     @property
     def options(self):
         return self._opts
-
-
-    @property
-    def offset(self):
-        return self._ofst
 
     
     @property
@@ -128,7 +123,7 @@ cdef class Match:
 
         # Convert to code unit index as necessary.
         if PyUnicode_Check(self._subj.obj):
-            start = codeunit_to_codepoint(self._subj, start)
+            _, start = codeunit_to_codepoint(self._subj, start, 0, 0)
 
         return start
 
@@ -163,7 +158,7 @@ cdef class Match:
 
         # Convert to code unit index as necessary.
         if PyUnicode_Check(self._subj.obj):
-            end = codeunit_to_codepoint(self._subj, end)
+            _, end = codeunit_to_codepoint(self._subj, end, 0, 0)
 
         return end
 
@@ -208,12 +203,21 @@ cdef class Match:
         """ Equivlanet to calling substitute with the provided match.
         The type of the subject determines the type of the returned string.
         """
-        options = options | PCRE2_SUBSTITUTE_MATCHED
+        is_subj_utf = <bint>PyUnicode_Check(self._subj.obj)
+        is_repl_utf = <bint>PyUnicode_Check(replacement)
+        if is_subj_utf ^ is_repl_utf:
+            if is_subj_utf:
+                raise ValueError("Cannot use a string subject with a bytes-like replacement.")
+            else:
+                raise ValueError("Cannot use a bytes-like subject with a string replacement.")
 
         # Convert Python objects to C strings.
         repl = get_buffer(replacement)
-        if PyUnicode_Check(self._subj.obj):
-            offset = codepoint_to_codeunit(self._subj, offset)
+        cdef size_t obj_ofst = <size_t>offset
+        cdef size_t ofst = obj_ofst
+        cdef uint32_t opts = <uint32_t>options | PCRE2_SUBSTITUTE_MATCHED
+        if is_subj_utf:
+            ofst, obj_ofst = codepoint_to_codeunit(self._subj, obj_ofst, 0, 0)
 
         # Dry run of substitution to get required replacement length.
         cdef uint8_t *res = NULL
@@ -221,14 +225,15 @@ cdef class Match:
         substitute_rc = pcre2_substitute(
             self._pattern._code,
             <pcre2_sptr_t>self._subj.buf, <size_t>self._subj.len,
-            offset,
-            options | PCRE2_SUBSTITUTE_OVERFLOW_LENGTH,
+            ofst,
+            opts | PCRE2_SUBSTITUTE_OVERFLOW_LENGTH,
             self._mtch,
             NULL,
             <pcre2_sptr_t>repl.buf, <size_t>repl.len,
             res, &res_len
         )
         if substitute_rc != PCRE2_ERROR_NOMEMORY and substitute_rc < 0:
+            PyBuffer_Release(repl)  
             raise_from_rc(substitute_rc, None)
         
         # Attempt string substitution.
@@ -236,21 +241,22 @@ cdef class Match:
         substitute_rc = pcre2_substitute(
             self._pattern._code,
             <pcre2_sptr_t>self._subj.buf, <size_t>self._subj.len,
-            offset,
-            options,
+            ofst,
+            opts,
             self._mtch,
             NULL,
             <pcre2_sptr_t>repl.buf, <size_t>repl.len,
             res, &res_len
         )
         if substitute_rc < 0:
+            PyBuffer_Release(repl)
             raise_from_rc(substitute_rc, None)
-        PyBuffer_Release(repl)
 
         # Clean up result and convert to unicode as appropriate.
         result = (<pcre2_sptr_t>res)[:res_len]
         result = result.strip(b"\x00")
         if PyUnicode_Check(self._subj.obj):
             result = result.decode("utf-8")
-            
+        
+        PyBuffer_Release(repl)
         return result

@@ -13,7 +13,7 @@ cdef class Match:
     cdef pcre2_match_data_t *_mtch
     cdef Pattern _pattern
     cdef Py_buffer *_subj
-    cdef size_t _ofst
+    cdef size_t _ofst # Byte offset, regardless of subject type.
     cdef uint32_t _opts
 
     @staticmethod
