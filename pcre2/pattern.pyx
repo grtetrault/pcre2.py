@@ -73,21 +73,22 @@ cdef class Pattern:
     #         Pattern information         #
     # =================================== #
 
-    cdef uint32_t _pcre2_pattern_info_uint(self, uint32_t what):
+    @staticmethod
+    cdef uint32_t _info_uint(pcre2_code_t *code, uint32_t what):
         """ Safely access pattern info returned as uint32_t. 
         """
         cdef uint32_t where
-        pattern_info_rc = pcre2_pattern_info(self._code, what, &where)
+        pattern_info_rc = pcre2_pattern_info(code, what, &where)
         if pattern_info_rc < 0:
             raise_from_rc(pattern_info_rc, None)
         return where
 
-
-    cdef bint _pcre2_pattern_info_bint(self, uint32_t what):
+    @staticmethod
+    cdef bint _info_bint(pcre2_code_t *code, uint32_t what):
         """ Safely access pattern info returned as bint. 
         """
         cdef bint where
-        pattern_info_rc = pcre2_pattern_info(self._code, what, &where)
+        pattern_info_rc = pcre2_pattern_info(code, what, &where)
         if pattern_info_rc < 0:
             raise_from_rc(pattern_info_rc, None)
         return where
@@ -105,7 +106,7 @@ cdef class Pattern:
         """ Returns the compile options as modified by any top-level (*XXX)
         option settings such as (*UTF) at the start of the pattern itself.
         """
-        return self._pcre2_pattern_info_uint(PCRE2_INFO_ALLOPTIONS)
+        return Pattern._info_uint(self._code, PCRE2_INFO_ALLOPTIONS)
 
 
     @property
@@ -113,7 +114,7 @@ cdef class Pattern:
         """ Return an indicator to what character sequences the \R escape
         sequence matches.
         """
-        bsr = self._pcre2_pattern_info_uint(PCRE2_INFO_BSR)
+        bsr = Pattern._info_uint(self._code, PCRE2_INFO_BSR)
         return BsrChar(bsr)
 
 
@@ -122,7 +123,7 @@ cdef class Pattern:
         """ Return the highest capture group number in the pattern. In patterns
         where (?| is not used, this is also the total number of capture groups.
         """
-        return self._pcre2_pattern_info_uint(PCRE2_INFO_CAPTURECOUNT)
+        return Pattern._info_uint(self._code, PCRE2_INFO_CAPTURECOUNT)
 
 
     @property
@@ -130,14 +131,14 @@ cdef class Pattern:
         """ If the compiled pattern was successfully JIT compiled, return the
         size of the JIT compiled code, otherwise return zero.
         """
-        return self._pcre2_pattern_info_uint(PCRE2_INFO_JITSIZE)
+        return Pattern._info_uint(self._code, PCRE2_INFO_JITSIZE)
 
     
     @property
     def name_count(self):
         """ Returns the number of named capture groups.
         """
-        return self._pcre2_pattern_info_uint(PCRE2_INFO_NAMECOUNT)
+        return Pattern._info_uint(self._code, PCRE2_INFO_NAMECOUNT)
 
 
     @property
@@ -145,7 +146,7 @@ cdef class Pattern:
         """ Returns the type of character sequence that will be recognized as 
         meaning "newline" while matching.
         """
-        newline = self._pcre2_pattern_info_uint(PCRE2_INFO_NEWLINE)
+        newline = Pattern._info_uint(self._code, PCRE2_INFO_NEWLINE)
         return NewlineChar(newline)
 
 
@@ -153,7 +154,7 @@ cdef class Pattern:
     def size(self):
         """ Return the size of the compiled pattern in bytes.
         """
-        return self._pcre2_pattern_info_uint(PCRE2_INFO_SIZE)
+        return Pattern._info_uint(self._code, PCRE2_INFO_SIZE)
 
 
     def name_dict(self):
@@ -161,8 +162,8 @@ cdef class Pattern:
         name.
         """
         # Get name table related information.
-        name_count = self._pcre2_pattern_info_uint(PCRE2_INFO_NAMECOUNT)
-        name_entry_size = self._pcre2_pattern_info_uint(PCRE2_INFO_NAMEENTRYSIZE)
+        name_count = Pattern._info_uint(self._code, PCRE2_INFO_NAMECOUNT)
+        name_entry_size = Pattern._info_uint(self._code, PCRE2_INFO_NAMEENTRYSIZE)
 
         cdef pcre2_sptr_t name_table
         pattern_info_rc = pcre2_pattern_info(self._code, PCRE2_INFO_NAMETABLE, &name_table)
@@ -202,20 +203,21 @@ cdef class Pattern:
             raise_from_rc(jit_compile_rc, None)
 
     
+    @staticmethod
     cdef pcre2_match_data_t * _match(
-        self, Py_buffer *subj, size_t ofst, uint32_t opts, int *rc
+        pcre2_code_t *code, Py_buffer *subj, size_t ofst, uint32_t opts, int *rc
     ):
         """ Returns error code.
         """
         # Allocate memory for match.
-        mtch = pcre2_match_data_create_from_pattern(self._code, NULL)
+        mtch = pcre2_match_data_create_from_pattern(code, NULL)
         if mtch is NULL:
             rc[0] = PCRE2_ERROR_NOMEMORY
             return NULL
 
         # Attempt match of pattern onto subject.
         rc[0] = pcre2_match(
-            self._code,
+            code,
             <pcre2_sptr_t>subj.buf, <size_t>subj.len,
             ofst, opts, mtch, NULL
         )
@@ -242,7 +244,7 @@ cdef class Pattern:
             ofst, obj_ofst = codepoint_to_codeunit(subj, obj_ofst, 0, 0)
 
         cdef int match_rc = 0 
-        cdef pcre2_match_data_t *mtch = self._match(subj, ofst, opts, &match_rc)
+        cdef pcre2_match_data_t *mtch = Pattern._match(self._code, subj, ofst, opts, &match_rc)
         if match_rc < 0:
             raise_from_rc(match_rc, None)
             
@@ -259,9 +261,9 @@ cdef class Pattern:
             subj_type = "string" if is_subj_utf else "bytes-like"
             raise ValueError(f"Cannot use a {patn_type} pattern with a {subj_type} subject.")
 
-        patn_opts = self._pcre2_pattern_info_bint(PCRE2_INFO_ALLOPTIONS)
+        patn_opts = Pattern._info_bint(self._code, PCRE2_INFO_ALLOPTIONS)
         is_patn_utf = (patn_opts & PCRE2_UTF) != 0
-        newline = self._pcre2_pattern_info_uint(PCRE2_INFO_NEWLINE)
+        newline = Pattern._info_uint(self._code, PCRE2_INFO_NEWLINE)
         is_crlf_newline = (
             newline == PCRE2_NEWLINE_ANY or
             newline == PCRE2_NEWLINE_CRLF or
@@ -286,7 +288,7 @@ cdef class Pattern:
                 ofst = obj_ofst
 
             # Attempt match of pattern onto subject.
-            mtch = self._match(subj, ofst, opts, &match_rc)
+            mtch = Pattern._match(self._code, subj, ofst, opts, &match_rc)
 
             if match_rc == PCRE2_ERROR_NOMATCH:
                 # Reset options so empty strings can match at next offset.
@@ -315,8 +317,9 @@ cdef class Pattern:
                 yield Match._from_data(mtch, self, subj, ofst, opts)
 
 
+    @staticmethod
     cdef (uint8_t *, size_t) _substitute(
-        self, Py_buffer *repl, Py_buffer *subj, size_t res_buf_len,
+        pcre2_code_t *code, Py_buffer *repl, Py_buffer *subj, size_t res_buf_len,
         size_t ofst, uint32_t opts, pcre2_match_data_t *mtch, int *rc
     ):
         """
@@ -324,7 +327,7 @@ cdef class Pattern:
         cdef size_t res_len = 0
         cdef uint8_t *res = <uint8_t *>malloc(res_buf_len * sizeof(uint8_t))
         substitute_rc = pcre2_substitute(
-            self._code,
+            code,
             <pcre2_sptr_t>subj.buf, <size_t>subj.len,
             ofst, opts | PCRE2_SUBSTITUTE_OVERFLOW_LENGTH, mtch, NULL,
             <pcre2_sptr_t>repl.buf, <size_t>repl.len,
@@ -334,7 +337,7 @@ cdef class Pattern:
             free(res)
             res = <uint8_t *>malloc(res_len * sizeof(uint8_t))
             substitute_rc = pcre2_substitute(
-                self._code,
+                code,
                 <pcre2_sptr_t>subj.buf, <size_t>subj.len,
                 ofst, opts, mtch, NULL,
                 <pcre2_sptr_t>repl.buf, <size_t>repl.len,
@@ -380,7 +383,9 @@ cdef class Pattern:
             res_buf_len = 2 * (subj.len)
 
         cdef int rc = 0
-        res, res_len = self._substitute(repl, subj, res_buf_len, ofst, opts, NULL, &rc)
+        res, res_len = Pattern._substitute(
+            self._code, repl, subj, res_buf_len, ofst, opts, NULL, &rc
+        )
         if res is NULL:
             raise_from_rc(rc, None)
 

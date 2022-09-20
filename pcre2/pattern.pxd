@@ -18,15 +18,18 @@ cdef class Pattern:
         pcre2_code_t *code, Py_buffer *patn, uint32_t opts
     )
 
-    cdef uint32_t _pcre2_pattern_info_uint(self, uint32_t what)
+    @staticmethod
+    cdef uint32_t _info_uint(pcre2_code_t *code, uint32_t what)
+    @staticmethod
+    cdef bint _info_bint(pcre2_code_t *code, uint32_t what)
 
-    cdef bint _pcre2_pattern_info_bint(self, uint32_t what)
-
+    @staticmethod
     cdef pcre2_match_data_t * _match(
-        self, Py_buffer *subj, size_t ofst, uint32_t opts, int *rc
+        pcre2_code_t *code, Py_buffer *subj, size_t ofst, uint32_t opts, int *rc
     )
 
+    @staticmethod
     cdef (uint8_t *, size_t) _substitute(
-        self, Py_buffer *repl, Py_buffer *subj, size_t res_buf_len,
+        pcre2_code_t *code, Py_buffer *repl, Py_buffer *subj, size_t res_buf_len,
         size_t ofst, uint32_t opts, pcre2_match_data_t *mtch, int *rc
     )

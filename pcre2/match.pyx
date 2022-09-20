@@ -217,8 +217,8 @@ cdef class Match:
             res_buf_len = 2 * self._subj.len
 
         cdef int rc = 0
-        res, res_len = self._pattern._substitute(
-            repl, self._subj, res_buf_len, ofst, opts, self._mtch, &rc
+        res, res_len = Pattern._substitute(
+            self._pattern._code, repl, self._subj, res_buf_len, ofst, opts, self._mtch, &rc
         )
         if res is NULL:
             raise_from_rc(rc, None)

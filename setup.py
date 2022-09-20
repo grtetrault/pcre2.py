@@ -15,8 +15,10 @@ import Cython.Build
 
 CWD = pathlib.Path(__file__).parent
 
-# _____________________________________________________________________________
-#                                                                     Utilities
+
+# ========================= #
+#         Utilities         #
+# ========================= #
 
 def download_from_url(
         url: str, 
@@ -55,8 +57,9 @@ def download_from_url(
         raise Exception("Unverified download, computed SHA256 does not match given hash")
    
 
-# _____________________________________________________________________________
-#                                                          Dependency constants    
+# ==================================== #
+#         Dependency constants         #
+# ==================================== #
 
 # Version and remote download location of PCRE2 to use.
 PCRE2_VERSION = "10.40"
@@ -70,8 +73,9 @@ PCRE2_TARBALL_HASHTABLE = {
 PCRE2_TARBALL_HASH = PCRE2_TARBALL_HASHTABLE[PCRE2_VERSION]
 
 
-# _____________________________________________________________________________
-#                                                              Build extensions
+# ================================ #
+#         Build extensions         #
+# ================================ #
 
 class Pcre2BuildExt(setuptools.command.build_ext.build_ext):
     deps_cwd = CWD.joinpath("deps").resolve()
@@ -120,8 +124,9 @@ class Pcre2BuildExt(setuptools.command.build_ext.build_ext):
         setuptools.command.build_ext.build_ext.run(self)
 
 
-# _____________________________________________________________________________
-#                                                                         Setup
+# ===================== #
+#         Setup         #
+# ===================== #
 
 # Configure Cython extension.
 ext_src = CWD.joinpath("pcre2")
@@ -135,8 +140,7 @@ pcre2_extension = setuptools.extension.Extension(
 
 cython_kwargs = {
     "language_level": "3",
-    "annotate": True,
-    "compiler_directives": {"profile": True}
+    "annotate": True
 }
 
 # See setup.cfg for static metadata.
