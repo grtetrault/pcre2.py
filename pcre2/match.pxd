@@ -18,9 +18,5 @@ cdef class Match:
 
     @staticmethod
     cdef Match _from_data(
-        pcre2_match_data_t *mtch,
-        Pattern pattern,
-        Py_buffer *subj,
-        size_t ofst,
-        uint32_t opts
+        pcre2_match_data_t *mtch, Pattern pattern, Py_buffer *subj, size_t ofst, uint32_t opts
     )

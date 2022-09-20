@@ -27,9 +27,7 @@ cpdef compile(pattern, uint32_t options=0):
         cdef size_t compile_errpos
         cdef pcre2_code_t *code = pcre2_compile(
             <pcre2_sptr_t>patn.buf, <size_t>patn.len,
-            options,
-            &compile_rc, &compile_errpos,
-            NULL
+            options, &compile_rc, &compile_errpos, NULL
         )
 
         if code is NULL:

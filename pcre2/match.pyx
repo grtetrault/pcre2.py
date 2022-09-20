@@ -53,8 +53,8 @@ cdef class Match:
 
 
     @staticmethod
-    cdef Match _from_data(pcre2_match_data_t *mtch, Pattern pattern,
-            Py_buffer *subj, size_t ofst, uint32_t opts
+    cdef Match _from_data(
+        pcre2_match_data_t *mtch, Pattern pattern, Py_buffer *subj, size_t ofst, uint32_t opts
     ):
         """ Factory function to create Match objects from C-type fields.
 
@@ -109,10 +109,7 @@ cdef class Match:
         else:
             grp_name = get_buffer(group)
             pcre2_substring_nametable_scan(
-                self._pattern._code,
-                <pcre2_sptr_t>grp_name.buf,
-                &first_entry,
-                &last_entry
+                self._pattern._code, <pcre2_sptr_t>grp_name.buf, &first_entry, &last_entry
             )
             grp_num = (first_entry[0] << 8) | first_entry[1]
             if grp_num < 0:
@@ -144,10 +141,7 @@ cdef class Match:
         else:
             grp_name = get_buffer(group)
             pcre2_substring_nametable_scan(
-                self._pattern._code,
-                <pcre2_sptr_t>grp_name.buf,
-                &first_entry,
-                &last_entry
+                self._pattern._code, <pcre2_sptr_t>grp_name.buf, &first_entry, &last_entry
             )
             grp_num = (first_entry[0] << 8) | first_entry[1]
             if grp_num < 0:
@@ -172,9 +166,7 @@ cdef class Match:
         cdef size_t res_len
         if isinstance(group, int):
             grp_num = <uint32_t>group
-            get_rc = pcre2_substring_get_bynumber(
-                self._mtch, grp_num, &res, &res_len
-            )
+            get_rc = pcre2_substring_get_bynumber(self._mtch, grp_num, &res, &res_len)
             if get_rc < 0:
                 raise_from_rc(get_rc, None)
         else:
@@ -208,10 +200,9 @@ cdef class Match:
         is_subj_utf = <bint>PyUnicode_Check(self._subj.obj)
         is_repl_utf = <bint>PyUnicode_Check(replacement)
         if is_subj_utf ^ is_repl_utf:
-            if is_subj_utf:
-                raise ValueError("Cannot use a string subject with a bytes-like replacement.")
-            else:
-                raise ValueError("Cannot use a bytes-like subject with a string replacement.")
+            subj_type = "string" if is_subj_utf else "bytes-like"
+            repl_type = "string" if is_repl_utf else "bytes-like"
+            raise ValueError(f"Cannot use a {subj_type} subject with a {repl_type} replacement.")
 
         # Convert Python objects to C strings.
         repl = get_buffer(replacement)
@@ -227,7 +218,7 @@ cdef class Match:
 
         cdef int rc = 0
         res, res_len = self._pattern._substitute(
-            repl, self._subj, ofst, opts, res_buf_len, self._mtch, &rc
+            repl, self._subj, res_buf_len, ofst, opts, self._mtch, &rc
         )
         if res is NULL:
             raise_from_rc(rc, None)

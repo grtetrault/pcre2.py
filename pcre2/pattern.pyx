@@ -228,10 +228,9 @@ cdef class Pattern:
         cdef bint is_patn_utf = PyUnicode_Check(self._patn.obj)
         cdef bint is_subj_utf = PyUnicode_Check(subject)
         if is_patn_utf ^ is_subj_utf:
-            if is_patn_utf:
-                raise ValueError("Cannot use a string pattern on a bytes-like subject.")
-            else:
-                raise ValueError("Cannot use a bytes-like pattern on a string subject.")
+            patn_type = "string" if is_patn_utf else "bytes-like"
+            subj_type = "string" if is_subj_utf else "bytes-like"
+            raise ValueError(f"Cannot use a {patn_type} pattern with a {subj_type} subject.")
 
         cdef Py_buffer *subj = get_buffer(subject)
         cdef size_t obj_ofst = <size_t>offset
@@ -256,13 +255,12 @@ cdef class Pattern:
         cdef bint is_patn_utf = PyUnicode_Check(self._patn.obj)
         cdef bint is_subj_utf = PyUnicode_Check(subject)
         if is_patn_utf ^ is_subj_utf:
-            if is_patn_utf:
-                raise ValueError("Cannot use a string pattern on a bytes-like subject.")
-            else:
-                raise ValueError("Cannot use a bytes-like pattern on a string subject.")
+            patn_type = "string" if is_patn_utf else "bytes-like"
+            subj_type = "string" if is_subj_utf else "bytes-like"
+            raise ValueError(f"Cannot use a {patn_type} pattern with a {subj_type} subject.")
 
-        options = self._pcre2_pattern_info_bint(PCRE2_INFO_ALLOPTIONS)
-        is_patn_utf = (options & PCRE2_UTF) != 0
+        patn_opts = self._pcre2_pattern_info_bint(PCRE2_INFO_ALLOPTIONS)
+        is_patn_utf = (patn_opts & PCRE2_UTF) != 0
         newline = self._pcre2_pattern_info_uint(PCRE2_INFO_NEWLINE)
         is_crlf_newline = (
             newline == PCRE2_NEWLINE_ANY or
@@ -282,9 +280,7 @@ cdef class Pattern:
 
             # Convert indices accordingly.
             if is_patn_utf:
-                ofst, obj_ofst = codepoint_to_codeunit(
-                    subj, next_obj_ofst, ofst, obj_ofst
-                )
+                ofst, obj_ofst = codepoint_to_codeunit(subj, next_obj_ofst, ofst, obj_ofst)
             else:
                 obj_ofst = next_obj_ofst
                 ofst = obj_ofst
@@ -293,19 +289,14 @@ cdef class Pattern:
             mtch = self._match(subj, ofst, opts, &match_rc)
 
             if match_rc == PCRE2_ERROR_NOMATCH:
+                # Reset options so empty strings can match at next offset.
+                opts = 0
                 next_obj_ofst += 1
 
                 # If we are at a CRLF that is matched as a newline.
-                if (
-                    is_crlf_newline and 
-                    (obj_ofst + 1) < subj_len and
-                    ord(subject[obj_ofst]) == ord("\r") and
-                    ord(subject[obj_ofst + 1]) == ord("\n")
-                ):
-                    next_obj_ofst += 1
-
-                # Reset options so empty strings can match at next offset.
-                opts = 0
+                if is_crlf_newline and (ofst + 1) < <size_t>subj.len:
+                    if subj.buf[ofst] == b"\r" and subj.buf[ofst + 1] == b"\n":
+                        next_obj_ofst += 1
             elif match_rc < 0:
                 raise_from_rc(match_rc, None)
             else:
@@ -318,19 +309,15 @@ cdef class Pattern:
                     opts = PCRE2_NOTEMPTY_ATSTART | PCRE2_ANCHORED
                 else:
                     opts = 0
-                    ofst, obj_ofst = codeunit_to_codepoint(
-                        subj, mtch_end, ofst, obj_ofst
-                    )
+                    ofst, obj_ofst = codeunit_to_codepoint(subj, mtch_end, ofst, obj_ofst)
                     next_obj_ofst = obj_ofst
 
                 yield Match._from_data(mtch, self, subj, ofst, opts)
 
 
     cdef (uint8_t *, size_t) _substitute(
-        self, Py_buffer *repl, Py_buffer *subj,
-        size_t ofst, uint32_t opts,
-        size_t res_buf_len,
-        pcre2_match_data_t *mtch, int *rc
+        self, Py_buffer *repl, Py_buffer *subj, size_t res_buf_len,
+        size_t ofst, uint32_t opts, pcre2_match_data_t *mtch, int *rc
     ):
         """
         """
@@ -339,8 +326,7 @@ cdef class Pattern:
         substitute_rc = pcre2_substitute(
             self._code,
             <pcre2_sptr_t>subj.buf, <size_t>subj.len,
-            ofst, opts | PCRE2_SUBSTITUTE_OVERFLOW_LENGTH,
-            mtch, NULL,
+            ofst, opts | PCRE2_SUBSTITUTE_OVERFLOW_LENGTH, mtch, NULL,
             <pcre2_sptr_t>repl.buf, <size_t>repl.len,
             res, &res_len
         )
@@ -350,8 +336,7 @@ cdef class Pattern:
             substitute_rc = pcre2_substitute(
                 self._code,
                 <pcre2_sptr_t>subj.buf, <size_t>subj.len,
-                ofst, opts,
-                mtch, NULL,
+                ofst, opts, mtch, NULL,
                 <pcre2_sptr_t>repl.buf, <size_t>repl.len,
                 res, &res_len
             )
@@ -373,16 +358,13 @@ cdef class Pattern:
         is_subj_utf = <bint>PyUnicode_Check(subject)
         is_repl_utf = <bint>PyUnicode_Check(replacement)
         if is_subj_utf ^ is_repl_utf:
-            if is_subj_utf:
-                raise ValueError("Cannot use a string subject with a bytes-like replacement.")
-            else:
-                raise ValueError("Cannot use a bytes-like subject with a string replacement.")
-
+            subj_type = "string" if is_subj_utf else "bytes-like"
+            repl_type = "string" if is_repl_utf else "bytes-like"
+            raise ValueError(f"Cannot use a {subj_type} subject with a {repl_type} replacement.")
         if is_patn_utf ^ is_subj_utf:
-            if is_patn_utf:
-                raise ValueError("Cannot use a string pattern on a bytes-like subject.")
-            else:
-                raise ValueError("Cannot use a bytes-like pattern on a string subject.")
+            patn_type = "string" if is_patn_utf else "bytes-like"
+            subj_type = "string" if is_subj_utf else "bytes-like"
+            raise ValueError(f"Cannot use a {patn_type} pattern with a {subj_type} subject.")
 
         # Convert Python objects to C types.
         subj = get_buffer(subject)
@@ -398,9 +380,7 @@ cdef class Pattern:
             res_buf_len = 2 * (subj.len)
 
         cdef int rc = 0
-        res, res_len = self._substitute(
-            repl, subj, ofst, opts, res_buf_len, NULL, &rc
-        )
+        res, res_len = self._substitute(repl, subj, res_buf_len, ofst, opts, NULL, &rc)
         if res is NULL:
             raise_from_rc(rc, None)
 
