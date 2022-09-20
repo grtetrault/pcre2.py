@@ -6,6 +6,7 @@ from libc.stdint cimport uint32_t
 from libc.stdlib cimport malloc, free
 from cpython cimport PyBuffer_Release
 from cpython.unicode cimport PyUnicode_Check
+cimport cython
 
 # Local imports.
 from .utils cimport *
@@ -13,6 +14,7 @@ from .libpcre2 cimport *
 from .pattern cimport Pattern
 
 
+@cython.freelist(8)
 cdef class Match:
     """
     See match.pxd for attribute definitions.
@@ -199,7 +201,7 @@ cdef class Match:
         return self.substring(group)
 
 
-    def expand(self, replacement, offset=0, uint32_t options=0):
+    def expand(self, replacement, offset=0, options=0, low_memory=False):
         """ Equivlanet to calling substitute with the provided match.
         The type of the subject determines the type of the returned string.
         """
@@ -219,44 +221,23 @@ cdef class Match:
         if is_subj_utf:
             ofst, obj_ofst = codepoint_to_codeunit(self._subj, obj_ofst, 0, 0)
 
-        # Dry run of substitution to get required replacement length.
-        cdef uint8_t *res = NULL
-        cdef size_t res_len = 0
-        substitute_rc = pcre2_substitute(
-            self._pattern._code,
-            <pcre2_sptr_t>self._subj.buf, <size_t>self._subj.len,
-            ofst,
-            opts | PCRE2_SUBSTITUTE_OVERFLOW_LENGTH,
-            self._mtch,
-            NULL,
-            <pcre2_sptr_t>repl.buf, <size_t>repl.len,
-            res, &res_len
+        cdef res_buf_len = 0
+        if not low_memory:
+            res_buf_len = 2 * self._subj.len
+
+        cdef int rc = 0
+        res, res_len = self._pattern._substitute(
+            repl, self._subj, ofst, opts, res_buf_len, self._mtch, &rc
         )
-        if substitute_rc != PCRE2_ERROR_NOMEMORY and substitute_rc < 0:
-            PyBuffer_Release(repl)  
-            raise_from_rc(substitute_rc, None)
-        
-        # Attempt string substitution.
-        res = <uint8_t *>malloc(res_len * sizeof(uint8_t))
-        substitute_rc = pcre2_substitute(
-            self._pattern._code,
-            <pcre2_sptr_t>self._subj.buf, <size_t>self._subj.len,
-            ofst,
-            opts,
-            self._mtch,
-            NULL,
-            <pcre2_sptr_t>repl.buf, <size_t>repl.len,
-            res, &res_len
-        )
-        if substitute_rc < 0:
-            PyBuffer_Release(repl)
-            raise_from_rc(substitute_rc, None)
+        if res is NULL:
+            raise_from_rc(rc, None)
 
         # Clean up result and convert to unicode as appropriate.
         result = (<pcre2_sptr_t>res)[:res_len]
         result = result.strip(b"\x00")
-        if PyUnicode_Check(self._subj.obj):
+        if is_subj_utf:
             result = result.decode("utf-8")
         
+        free(res)
         PyBuffer_Release(repl)
         return result

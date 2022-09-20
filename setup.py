@@ -88,6 +88,7 @@ class Pcre2BuildExt(setuptools.command.build_ext.build_ext):
         [
             "./configure",
             "--enable-jit",
+            "--enable-never-backslash-C",
             f"--prefix={pcre2_cwd}"
         ],
         ["make"]
@@ -134,7 +135,8 @@ pcre2_extension = setuptools.extension.Extension(
 
 cython_kwargs = {
     "language_level": "3",
-    "annotate": True
+    "annotate": True,
+    "compiler_directives": {"profile": True}
 }
 
 # See setup.cfg for static metadata.

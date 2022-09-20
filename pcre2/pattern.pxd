@@ -27,3 +27,10 @@ cdef class Pattern:
     cdef pcre2_match_data_t * _match(
         self, Py_buffer *subj, size_t ofst, uint32_t opts, int *rc
     )
+
+    cdef (uint8_t *, size_t) _substitute(
+        self, Py_buffer *repl, Py_buffer *subj,
+        size_t ofst, uint32_t opts,
+        size_t res_buf_len,
+        pcre2_match_data_t *mtch, int *rc
+    )
