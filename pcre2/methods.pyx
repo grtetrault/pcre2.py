@@ -12,12 +12,13 @@ from .pattern cimport Pattern
 from .match cimport Match
 
 
-cpdef compile(pattern, uint32_t options=0):
+def compile(pattern, options=0):
         """ Factory function to create Pattern objects with newly compiled
         pattern.
         """
         
         cdef Py_buffer *patn = get_buffer(pattern)
+        cdef uint32_t opts = <uint32_t>options
 
         # Ensure unicode strings are processed with UTF-8 support.
         if PyUnicode_Check(pattern):
@@ -26,8 +27,7 @@ cpdef compile(pattern, uint32_t options=0):
         cdef int compile_rc
         cdef size_t compile_errpos
         cdef pcre2_code_t *code = pcre2_compile(
-            <pcre2_sptr_t>patn.buf, <size_t>patn.len,
-            options, &compile_rc, &compile_errpos, NULL
+            <pcre2_sptr_t>patn.buf, <size_t>patn.len, opts, &compile_rc, &compile_errpos, NULL
         )
 
         if code is NULL:
@@ -37,4 +37,4 @@ cpdef compile(pattern, uint32_t options=0):
             additional_msg = f"Compilation failed at position {compile_errpos!r}."
             raise_from_rc(compile_rc, additional_msg)
 
-        return Pattern._from_data(code, patn, options)
+        return Pattern._from_data(code, patn, opts)
