@@ -37,7 +37,6 @@ cdef Py_buffer * get_buffer(object obj) except NULL:
     pybuf = <Py_buffer *>malloc(sizeof(Py_buffer))
     if not pybuf:
         raise MemoryError()
-        return NULL
 
     # Process unicode and derivative objects.
     if PyUnicode_Check(obj):
@@ -47,7 +46,6 @@ cdef Py_buffer * get_buffer(object obj) except NULL:
             PyBuffer_Release(pybuf)
             free(pybuf)
             raise ValueError("Could not fill internal buffer")
-            return NULL
     
     # Handle all other bytes-like objects.
     else:
@@ -57,11 +55,9 @@ cdef Py_buffer * get_buffer(object obj) except NULL:
                 PyBuffer_Release(pybuf)
                 free(pybuf)
                 raise ValueError("Bytes-like object must be contiguous")
-                return NULL
         else:
             free(pybuf)
             raise ValueError("Input must be string or bytes-like")
-            return NULL
 
     return pybuf
 
@@ -114,5 +110,3 @@ cdef void * raise_from_rc(int errorcode, object context_msg) except NULL:
 
     else:
         raise LibraryError(errorcode, context_msg)
-
-    return NULL

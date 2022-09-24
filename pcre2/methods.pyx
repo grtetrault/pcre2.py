@@ -12,7 +12,7 @@ from .pattern cimport Pattern
 from .match cimport Match
 
 
-def compile(pattern, options=0):
+def compile(pattern, options=0, jit=False):
     """ Factory function to create Pattern objects with newly compiled
     pattern.
     """
@@ -37,7 +37,10 @@ def compile(pattern, options=0):
         additional_msg = f"Compilation failed at position {compile_errpos!r}"
         raise_from_rc(compile_rc, additional_msg)
 
-    return Pattern._from_data(code, patn, opts)
+    pattern_obj = Pattern._from_data(code, patn, opts)
+    if jit:
+        pattern_obj.jit_compile()
+    return pattern_obj
 
 
 def match(pattern, subject, offset=0, options=0):
@@ -45,9 +48,7 @@ def match(pattern, subject, offset=0, options=0):
 
 
 def scan(pattern, subject, offset=0):
-    pattern_obj = compile(pattern)
-    pattern_obj.jit_compile()
-    return pattern_obj.scan(subject, offset=offset)
+    return compile(pattern, jit=True).scan(subject, offset=offset)
 
 
 def substitute(pattern, replacement, subject, offset=0, options=0, low_memory=False):
