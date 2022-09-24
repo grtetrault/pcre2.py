@@ -34,7 +34,7 @@ def compile(pattern, options=0):
         # If source was a unicode string, use the code point offset.
         if PyUnicode_Check(pattern):
             _, compile_errpos = codeunit_to_codepoint(patn, compile_errpos, 0, 0)
-        additional_msg = f"Compilation failed at position {compile_errpos!r}."
+        additional_msg = f"Compilation failed at position {compile_errpos!r}"
         raise_from_rc(compile_rc, additional_msg)
 
     return Pattern._from_data(code, patn, opts)
@@ -45,7 +45,9 @@ def match(pattern, subject, offset=0, options=0):
 
 
 def scan(pattern, subject, offset=0):
-    return compile(pattern).scan(subject, offset=offset)
+    pattern_obj = compile(pattern)
+    pattern_obj.jit_compile()
+    return pattern_obj.scan(subject, offset=offset)
 
 
 def substitute(pattern, replacement, subject, offset=0, options=0, low_memory=False):

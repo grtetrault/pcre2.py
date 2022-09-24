@@ -44,7 +44,7 @@ cdef class Pattern:
         # cannot pass pointers into a Python constructor.
         module = self.__class__.__module__
         qualname = self.__class__.__qualname__
-        raise TypeError(f"Cannot create '{module}.{qualname}' instances.")
+        raise TypeError(f"Cannot create '{module}.{qualname}' instances")
 
 
     def __dealloc__(self):
@@ -204,13 +204,17 @@ cdef class Pattern:
 
     
     @staticmethod
+    cdef pcre2_match_data_t * _create_match_data(pcre2_code_t *code):
+        return pcre2_match_data_create_from_pattern(code, NULL)
+
+    @staticmethod
     cdef pcre2_match_data_t * _match(
         pcre2_code_t *code, Py_buffer *subj, size_t ofst, uint32_t opts, int *rc
     ):
         """ Returns error code.
         """
         # Allocate memory for match.
-        mtch = pcre2_match_data_create_from_pattern(code, NULL)
+        mtch = Pattern._create_match_data(code)
         if mtch is NULL:
             rc[0] = PCRE2_ERROR_NOMEMORY
             return NULL
@@ -232,7 +236,7 @@ cdef class Pattern:
         if is_patn_utf ^ is_subj_utf:
             patn_type = "string" if is_patn_utf else "bytes-like"
             subj_type = "string" if is_subj_utf else "bytes-like"
-            raise ValueError(f"Cannot use a {patn_type} pattern with a {subj_type} subject.")
+            raise ValueError(f"Cannot use a {patn_type} pattern with a {subj_type} subject")
 
         cdef Py_buffer *subj = get_buffer(subject)
         cdef size_t obj_ofst = <size_t>offset
@@ -259,7 +263,7 @@ cdef class Pattern:
         if is_patn_utf ^ is_subj_utf:
             patn_type = "string" if is_patn_utf else "bytes-like"
             subj_type = "string" if is_subj_utf else "bytes-like"
-            raise ValueError(f"Cannot use a {patn_type} pattern with a {subj_type} subject.")
+            raise ValueError(f"Cannot use a {patn_type} pattern with a {subj_type} subject")
 
         patn_opts = Pattern._info_bint(self._code, PCRE2_INFO_ALLOPTIONS)
         is_patn_utf = (patn_opts & PCRE2_UTF) != 0
@@ -270,13 +274,15 @@ cdef class Pattern:
             newline == PCRE2_NEWLINE_ANYCRLF
         )
 
-        cdef size_t next_obj_ofst = <size_t>offset
-        cdef size_t obj_ofst = 0
-        cdef size_t ofst = 0
+        # Set offsets to keep track of object and byte offset indices.
+        next_obj_ofst = <size_t>offset
+        obj_ofst = 0
+        ofst = 0
 
-        cdef uint32_t opts = 0
-        cdef int match_rc = 0
-        cdef size_t subj_len = <size_t>len(subject)
+        opts = <unint32_t>0
+        match_rc = <int>0
+        subj_len = <size_t>len(subject)
+        
         while next_obj_ofst <= subj_len:
             subj = get_buffer(subject)
 
@@ -291,6 +297,9 @@ cdef class Pattern:
             mtch = Pattern._match(self._code, subj, ofst, opts, &match_rc)
 
             if match_rc == PCRE2_ERROR_NOMATCH:
+                if opts == 0:
+                    break
+
                 # Reset options so empty strings can match at next offset.
                 opts = 0
                 next_obj_ofst += 1
@@ -363,11 +372,11 @@ cdef class Pattern:
         if is_subj_utf ^ is_repl_utf:
             subj_type = "string" if is_subj_utf else "bytes-like"
             repl_type = "string" if is_repl_utf else "bytes-like"
-            raise ValueError(f"Cannot use a {subj_type} subject with a {repl_type} replacement.")
+            raise ValueError(f"Cannot use a {subj_type} subject with a {repl_type} replacement")
         if is_patn_utf ^ is_subj_utf:
             patn_type = "string" if is_patn_utf else "bytes-like"
             subj_type = "string" if is_subj_utf else "bytes-like"
-            raise ValueError(f"Cannot use a {patn_type} pattern with a {subj_type} subject.")
+            raise ValueError(f"Cannot use a {patn_type} pattern with a {subj_type} subject")
 
         # Convert Python objects to C types.
         subj = get_buffer(subject)

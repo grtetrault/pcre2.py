@@ -42,21 +42,21 @@ cdef inline Py_buffer * get_buffer(object obj):
         sptr = PyUnicode_AsUTF8AndSize(obj, &length)
         fill_buf_rc = PyBuffer_FillInfo(pybuf, obj, <void *>sptr, length, 1, 0)
         if fill_buf_rc < 0:
-            raise ValueError("Could not fill internal buffer.")
+            raise ValueError("Could not fill internal buffer")
     
     # Handle all other bytes-like objects.
     else:
         if PyObject_CheckBuffer(obj):
             get_buffer_rc = PyObject_GetBuffer(obj, pybuf, 0)
             if not PyBuffer_IsContiguous(pybuf, b"C"):
-                raise ValueError("Bytes-like object must be C-style contiguous.")
+                raise ValueError("Bytes-like object must be C-style contiguous")
         else:
-            raise ValueError("Input must be string or bytes-like.")
+            raise ValueError("Input must be string or bytes-like")
 
     return pybuf
 
 
-cdef inline (size_t, size_t) codeunit_to_codepoint(
+cdef (size_t, size_t) codeunit_to_codepoint(
     Py_buffer *pybuf,
     size_t codeunit_idx,
     size_t cur_codeunit_idx, size_t cur_codepoint_idx
@@ -70,7 +70,7 @@ cdef inline (size_t, size_t) codeunit_to_codepoint(
     return cur_codeunit_idx, cur_codepoint_idx
 
     
-cdef inline (size_t, size_t) codepoint_to_codeunit(
+cdef (size_t, size_t) codepoint_to_codeunit(
     Py_buffer *pybuf,
     size_t codepoint_idx,
     size_t cur_codeunit_idx, size_t cur_codepoint_idx
@@ -84,7 +84,7 @@ cdef inline (size_t, size_t) codepoint_to_codeunit(
     return cur_codeunit_idx, cur_codepoint_idx
 
 
-cdef inline raise_from_rc(int errorcode, object context_msg):
+cdef raise_from_rc(int errorcode, object context_msg):
     """ Raise the appropriate error type from the given error code.
 
     Raises one of the custom exception classes defined in this module. Each

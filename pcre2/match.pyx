@@ -42,7 +42,7 @@ cdef class Match:
         # cannot pass pointers into a Python constructor.
         module = self.__class__.__module__
         qualname = self.__class__.__qualname__
-        raise TypeError(f"Cannot create '{module}.{qualname}' instances.")
+        raise TypeError(f"Cannot create '{module}.{qualname}' instances")
 
 
     def __dealloc__(self):
@@ -117,7 +117,7 @@ cdef class Match:
             PyBuffer_Release(grp_name)
 
         if grp_num > <int>ovec_count:
-            raise ValueError("Group referenced out of bounds.")
+            raise ValueError("Group referenced out of bounds")
         start = ovec_table[2 * grp_num]
 
         # Convert to code unit index as necessary.
@@ -202,7 +202,7 @@ cdef class Match:
         if is_subj_utf ^ is_repl_utf:
             subj_type = "string" if is_subj_utf else "bytes-like"
             repl_type = "string" if is_repl_utf else "bytes-like"
-            raise ValueError(f"Cannot use a {subj_type} subject with a {repl_type} replacement.")
+            raise ValueError(f"Cannot use a {subj_type} subject with a {repl_type} replacement")
 
         # Convert Python objects to C strings.
         repl = get_buffer(replacement)

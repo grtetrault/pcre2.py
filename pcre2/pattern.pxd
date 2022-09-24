@@ -24,6 +24,8 @@ cdef class Pattern:
     cdef bint _info_bint(pcre2_code_t *code, uint32_t what)
 
     @staticmethod
+    cdef pcre2_match_data_t * _create_match_data(pcre2_code_t *code)
+    @staticmethod
     cdef pcre2_match_data_t * _match(
         pcre2_code_t *code, Py_buffer *subj, size_t ofst, uint32_t opts, int *rc
     )
