@@ -204,17 +204,13 @@ cdef class Pattern:
 
     
     @staticmethod
-    cdef pcre2_match_data_t * _create_match_data(pcre2_code_t *code):
-        return pcre2_match_data_create_from_pattern(code, NULL)
-
-    @staticmethod
     cdef pcre2_match_data_t * _match(
         pcre2_code_t *code, Py_buffer *subj, size_t ofst, uint32_t opts, int *rc
     ):
         """ Returns error code.
         """
         # Allocate memory for match.
-        mtch = Pattern._create_match_data(code)
+        mtch = pcre2_match_data_create_from_pattern(code, NULL)
         if mtch is NULL:
             rc[0] = PCRE2_ERROR_NOMEMORY
             return NULL
@@ -279,10 +275,9 @@ cdef class Pattern:
         obj_ofst = 0
         ofst = 0
 
-        opts = <unint32_t>0
+        opts = <uint32_t>0
         match_rc = <int>0
         subj_len = <size_t>len(subject)
-        
         while next_obj_ofst <= subj_len:
             subj = get_buffer(subject)
 
@@ -297,28 +292,33 @@ cdef class Pattern:
             mtch = Pattern._match(self._code, subj, ofst, opts, &match_rc)
 
             if match_rc == PCRE2_ERROR_NOMATCH:
+                # Default match is not achored so if no match found at current offset, then there
+                # will not be any ahead either.
                 if opts == 0:
+                    PyBuffer_Release(subj)
                     break
 
                 # Reset options so empty strings can match at next offset.
                 opts = 0
-                next_obj_ofst += 1
 
-                # If we are at a CRLF that is matched as a newline.
+                # Increment to next character and handle possible CRLF newlines.
+                next_obj_ofst += 1
                 if is_crlf_newline and (ofst + 1) < <size_t>subj.len:
                     if subj.buf[ofst] == b"\r" and subj.buf[ofst + 1] == b"\n":
                         next_obj_ofst += 1
+
             elif match_rc < 0:
                 raise_from_rc(match_rc, None)
+
             else:
-                # If the matched string is empty ensure next is not. Otherwise
-                # reset options and allow for empty matches.
                 ovec_table = pcre2_get_ovector_pointer(mtch)
                 mtch_end = ovec_table[1]
 
                 if ofst == mtch_end:
+                    # If the matched string is empty ensure next is not.
                     opts = PCRE2_NOTEMPTY_ATSTART | PCRE2_ANCHORED
                 else:
+                    # Convert the end in the byte string to the end in the object.
                     opts = 0
                     ofst, obj_ofst = codeunit_to_codepoint(subj, mtch_end, ofst, obj_ofst)
                     next_obj_ofst = obj_ofst
