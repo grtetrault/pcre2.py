@@ -1,14 +1,15 @@
 # -*- coding:utf-8 -*-
 
 # Standard libraries.
-from libc.stdlib cimport malloc
+from libc.stdlib cimport malloc, free
 from libc.stdint cimport uint8_t
 from cpython cimport Py_buffer
 from cpython.buffer cimport (
     PyObject_CheckBuffer,
     PyBuffer_IsContiguous,
     PyObject_GetBuffer,
-    PyBuffer_FillInfo
+    PyBuffer_FillInfo,
+    PyBuffer_Release
 )
 from cpython.unicode cimport (
     PyUnicode_Check
@@ -26,7 +27,7 @@ from .libpcre2 cimport *
 from .exceptions import LibraryError, CompileError, MatchError
 
 
-cdef inline Py_buffer * get_buffer(object obj):
+cdef Py_buffer * get_buffer(object obj) except NULL:
     """ Get a Python buffer from an object, encoding via UTF-8 if unicode
     based.
     """
@@ -36,22 +37,31 @@ cdef inline Py_buffer * get_buffer(object obj):
     pybuf = <Py_buffer *>malloc(sizeof(Py_buffer))
     if not pybuf:
         raise MemoryError()
+        return NULL
 
     # Process unicode and derivative objects.
     if PyUnicode_Check(obj):
         sptr = PyUnicode_AsUTF8AndSize(obj, &length)
         fill_buf_rc = PyBuffer_FillInfo(pybuf, obj, <void *>sptr, length, 1, 0)
         if fill_buf_rc < 0:
+            PyBuffer_Release(pybuf)
+            free(pybuf)
             raise ValueError("Could not fill internal buffer")
+            return NULL
     
     # Handle all other bytes-like objects.
     else:
         if PyObject_CheckBuffer(obj):
             get_buffer_rc = PyObject_GetBuffer(obj, pybuf, 0)
-            if not PyBuffer_IsContiguous(pybuf, b"C"):
-                raise ValueError("Bytes-like object must be C-style contiguous")
+            if not PyBuffer_IsContiguous(pybuf, b"A"):
+                PyBuffer_Release(pybuf)
+                free(pybuf)
+                raise ValueError("Bytes-like object must be contiguous")
+                return NULL
         else:
+            free(pybuf)
             raise ValueError("Input must be string or bytes-like")
+            return NULL
 
     return pybuf
 
@@ -84,7 +94,7 @@ cdef (size_t, size_t) codepoint_to_codeunit(
     return cur_codeunit_idx, cur_codepoint_idx
 
 
-cdef raise_from_rc(int errorcode, object context_msg):
+cdef void * raise_from_rc(int errorcode, object context_msg) except NULL:
     """ Raise the appropriate error type from the given error code.
 
     Raises one of the custom exception classes defined in this module. Each
@@ -104,3 +114,5 @@ cdef raise_from_rc(int errorcode, object context_msg):
 
     else:
         raise LibraryError(errorcode, context_msg)
+
+    return NULL

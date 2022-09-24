@@ -333,8 +333,8 @@ cdef class Pattern:
     ):
         """
         """
-        cdef size_t res_len = 0
-        cdef uint8_t *res = <uint8_t *>malloc(res_buf_len * sizeof(uint8_t))
+        cdef size_t res_len = res_buf_len
+        cdef uint8_t *res = <uint8_t *>malloc(res_len * sizeof(uint8_t))
         substitute_rc = pcre2_substitute(
             code,
             <pcre2_sptr_t>subj.buf, <size_t>subj.len,
@@ -352,7 +352,7 @@ cdef class Pattern:
                 <pcre2_sptr_t>repl.buf, <size_t>repl.len,
                 res, &res_len
             )
-
+        # Capture return codes from both substitute attempts.
         if substitute_rc < 0:
             free(res)
             PyBuffer_Release(subj)

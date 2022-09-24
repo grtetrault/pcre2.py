@@ -51,6 +51,9 @@ def scan(pattern, subject, offset=0):
 
 
 def substitute(pattern, replacement, subject, offset=0, options=0, low_memory=False):
-    return compile(pattern).substitute(
+    pattern_obj = compile(pattern)
+    if <int>options & PCRE2_SUBSTITUTE_GLOBAL:
+        pattern_obj.jit_compile()
+    return pattern_obj.substitute(
         replacement, subject, offset=offset, options=options, low_memory=low_memory
     )
