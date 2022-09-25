@@ -50,9 +50,11 @@ if __name__ == "__main__":
     for script in SCRIPTS:
         cmd = ["time", PYTHON, script]
         print("Executing CMD:", list(map(lambda c: str(c), cmd)))
+        print("Total Iterations:", NUM_RUNS, "| ", end="", flush=True)
 
         total_stats = 0, 0, 0
         for _ in range(NUM_RUNS):
+            print(".", end="", flush=True)
             out = subprocess.run(cmd, input=data, capture_output=True, cwd=PROJ_CWD)
             assert out.stdout == EXPECTED_OUTPUT
 
@@ -62,6 +64,7 @@ if __name__ == "__main__":
             )
             cur_stats = float(time_match[1]), float(time_match[2]), float(time_match[3])
             total_stats = elem_add(total_stats, cur_stats)
+        print(" DONE", flush=True)
 
         avg_stats = tuple(map(lambda i: i / NUM_RUNS, total_stats))
         results += (
