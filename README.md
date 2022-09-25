@@ -1,6 +1,6 @@
-# :construction: PCRE2.py: fast regular expressions, no ease-of-use sacrificed :construction:
+# PCRE2.py: Python bindings for the PCRE2 regular expression library
 
-:warning: **This project is currently under active development and still in planning stages.**
+:construction: **This project is currently under active development and still in planning stages.**  :construction:
 
 This project contains Python bindings for [PCRE2](https://github.com/PCRE2Project/pcre2)
 with the goal of providing fast regular expression functionality.
