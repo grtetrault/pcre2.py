@@ -1,6 +1,6 @@
 # Adapted from the following submission:
 # https://benchmarksgame-team.pages.debian.net/benchmarksgame/program/regexredux-python3-1.html
-
+#
 # The Computer Language Benchmarks Game
 # http://shootout.alioth.debian.org/
 

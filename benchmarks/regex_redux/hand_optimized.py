@@ -1,6 +1,9 @@
 # Adapted to run locally from the following:
 # https://benchmarksgame-team.pages.debian.net/benchmarksgame/program/regexredux-python3-2.html
-
+#
+# 3 - Clause BSD License
+# https://benchmarksgame-team.pages.debian.net/benchmarksgame/license.html
+#
 # The Computer Language Benchmarks Game
 # https://salsa.debian.org/benchmarksgame-team/benchmarksgame/
 #
