@@ -1,7 +1,8 @@
 .venv/
 .python-version
-build/
-dist/
+.pytest_cache
+build
+dist
 pcre2.egg-info/
 src/pcre2/**/*.c
 src/pcre2/**/*.html
