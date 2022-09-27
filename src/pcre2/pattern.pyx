@@ -22,6 +22,8 @@ def _rebuild(pattern, code_bytes_obj, options):
         
         cdef pcre2_code_t *code
         number_of_codes = pcre2_serialize_decode(&code, 1, <const uint8_t *>code_buf.buf, NULL)
+        if number_of_codes < 0:
+            raise_from_rc(number_of_codes)
 
         return Pattern._from_data(code, patn, opts)
 
