@@ -12,6 +12,7 @@ cdef class Pattern:
     cdef pcre2_code_t *_code
     cdef Py_buffer *_patn
     cdef uint32_t _opts
+    cdef bint _jitc
 
     @staticmethod
     cdef Pattern _from_data(

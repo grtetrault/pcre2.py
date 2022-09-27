@@ -55,7 +55,7 @@ pcre2_extension = setuptools.extension.Extension(
 cython_kwargs = {
     "language_level": "3",
     "annotate": True,
-    # "compiler_directives": {"profile": True}
+    "compiler_directives": {"profile": True}
 }
 
 # See setup.cfg for static metadata.

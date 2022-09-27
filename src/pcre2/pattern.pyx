@@ -1,18 +1,29 @@
 # -*- coding:utf-8 -*-
 
 # Standard libraries.
-from enum import IntEnum
 from libc.stdint cimport uint32_t
 from libc.stdlib cimport malloc, free
 from cpython cimport Py_buffer, PyBuffer_Release
+from cpython cimport array
 from cpython.unicode cimport PyUnicode_Check
+from cpython.memoryview cimport PyMemoryView_FromMemory
 
 # Local imports.
 from .utils cimport *
 from .libpcre2 cimport *
 from .match cimport Match
 from .consts import BsrChar, NewlineChar
-from .exceptions import MatchError
+
+
+def _rebuild(pattern, code_bytes_obj, options):
+        patn = get_buffer(pattern)
+        opts = <uint32_t>options
+        code_buf = get_buffer(code_bytes_obj)
+        
+        cdef pcre2_code_t *code
+        number_of_codes = pcre2_serialize_decode(&code, 1, <const uint8_t *>code_buf.buf, NULL)
+
+        return Pattern._from_data(code, patn, opts)
 
 
 cdef class Pattern:
@@ -37,6 +48,7 @@ cdef class Pattern:
         self._code = NULL
         self._patn = NULL
         self._opts = 0
+        self._jitc = False
 
 
     def __init__(self, *args, **kwargs):
@@ -67,6 +79,22 @@ cdef class Pattern:
         pattern._patn = patn
         pattern._opts = opts
         return pattern
+
+
+    # ========================================= #
+    #         Serialize and deserialize         #
+    # ========================================= #
+
+    def __reduce__(self):
+        cdef uint8_t *code_bytes
+        cdef size_t code_count
+        serialize_rc = pcre2_serialize_encode(
+            <const pcre2_code_t **>&self._code, 1, &code_bytes, &code_count, NULL
+        )
+        if serialize_rc < 0:
+            raise_from_rc(serialize_rc, None)
+
+        return (_rebuild, (self._patn.obj, code_bytes[:code_count], self._opts))
 
 
     # =================================== #
@@ -201,6 +229,7 @@ cdef class Pattern:
         jit_compile_rc = pcre2_jit_compile(self._code, PCRE2_JIT_COMPLETE)
         if jit_compile_rc < 0:
             raise_from_rc(jit_compile_rc, None)
+        self._jitc = True
 
     
     @staticmethod
@@ -214,11 +243,10 @@ cdef class Pattern:
         if mtch is NULL:
             rc[0] = PCRE2_ERROR_NOMEMORY
             return NULL
-
+        
         # Attempt match of pattern onto subject.
         rc[0] = pcre2_match(
-            code,
-            <pcre2_sptr_t>subj.buf, <size_t>subj.len,
+            code, <pcre2_sptr_t>subj.buf, <size_t>subj.len,
             ofst, opts, mtch, NULL
         )
         return mtch
@@ -243,8 +271,8 @@ cdef class Pattern:
         if is_subj_utf:
             ofst, obj_ofst = codepoint_to_codeunit(subj, obj_ofst, 0, 0)
 
-        cdef int match_rc = 0 
-        cdef pcre2_match_data_t *mtch = Pattern._match(self._code, subj, ofst, opts, &match_rc)
+        cdef int match_rc = 0
+        mtch = Pattern._match(self._code, subj, ofst, opts, &match_rc)
         if match_rc < 0:
             raise_from_rc(match_rc, None)
             
@@ -307,7 +335,7 @@ cdef class Pattern:
                     if subj.buf[ofst] == b"\r" and subj.buf[ofst + 1] == b"\n":
                         next_obj_ofst += 1
 
-            elif match_rc < 0:
+            elif mtch == NULL or match_rc < 0:
                 raise_from_rc(match_rc, None)
 
             else:
@@ -320,8 +348,13 @@ cdef class Pattern:
                 else:
                     # Convert the end in the byte string to the end in the object.
                     opts = 0
-                    ofst, obj_ofst = codeunit_to_codepoint(subj, mtch_end, ofst, obj_ofst)
-                    next_obj_ofst = obj_ofst
+                    if is_patn_utf:
+                        ofst, obj_ofst = codeunit_to_codepoint(subj, mtch_end, ofst, obj_ofst)
+                        next_obj_ofst = obj_ofst
+                    else:
+                        obj_ofst = mtch_end
+                        ofst = obj_ofst
+                        next_obj_ofst = obj_ofst
 
                 yield Match._from_data(mtch, self, subj, ofst, opts)
 
@@ -334,7 +367,8 @@ cdef class Pattern:
         """
         """
         cdef size_t res_len = res_buf_len
-        cdef uint8_t *res = <uint8_t *>malloc(res_len * sizeof(uint8_t))
+        cdef uint8_t *res
+        res = <uint8_t *>malloc(res_len * sizeof(uint8_t))
         substitute_rc = pcre2_substitute(
             code,
             <pcre2_sptr_t>subj.buf, <size_t>subj.len,
@@ -389,7 +423,7 @@ cdef class Pattern:
 
         cdef size_t res_buf_len = 0
         if not low_memory:
-            res_buf_len = 2 * (subj.len)
+            res_buf_len = subj.len + (subj.len // 2)
 
         cdef int rc = 0
         res, res_len = Pattern._substitute(

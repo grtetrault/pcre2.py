@@ -16,7 +16,7 @@ SCRIPTS = [
    PROJ_CWD.joinpath("benchmarks/regex_redux/hand_optimized.py"),
    PROJ_CWD.joinpath("benchmarks/regex_redux/pcre2_module.py"),
 ]
-NUM_RUNS = 10
+NUM_RUNS = 5
 
 EXPECTED_OUTPUT = """\
 agggtaaa|tttaccct 356
