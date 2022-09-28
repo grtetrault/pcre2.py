@@ -12,7 +12,7 @@ LIBPCRE2_CONFIG = PROJ_CWD.joinpath("libpcre2.cfg")
 PYTHON = PROJ_CWD.joinpath(".venv/bin/python3")
 INPUT_DATA = PROJ_CWD.joinpath("benchmarks/regex_redux/input.txt")
 SCRIPTS = [
-   PROJ_CWD.joinpath("benchmarks/regex_redux/vanilla.py"),
+   # PROJ_CWD.joinpath("benchmarks/regex_redux/vanilla.py"),
    PROJ_CWD.joinpath("benchmarks/regex_redux/hand_optimized.py"),
    PROJ_CWD.joinpath("benchmarks/regex_redux/pcre2_module.py"),
 ]

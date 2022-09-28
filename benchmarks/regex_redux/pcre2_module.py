@@ -18,12 +18,12 @@ def init_pool(_data):
     data = _data
 
 
-def n_matches(patn: bytes):
+def n_matches(patn):
     n = sum(1 for _ in pcre2.scan(patn, data))
     return patn.decode(), n
 
 
-def seq_subs(data: bytes, subs: bytes, result: mp.Value):
+def seq_subs(data, subs, result):
     for patn, repl in subs:
         data = pcre2.substitute(patn, repl, data, options=GLOBAL)
     result.value = data
