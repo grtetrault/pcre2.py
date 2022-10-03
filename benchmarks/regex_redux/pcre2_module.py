@@ -14,16 +14,22 @@ GLOBAL = pcre2.SubstituteOption.GLOBAL
 
 
 def init_pool(_data):
+    # Pool initializer
     global data
     data = _data
 
 
 def n_matches(patn):
+    # Pool worker
+    # Get number of non-overlapping matches in data global to pool.
     n = sum(1 for _ in pcre2.scan(patn, data))
     return patn.decode(), n
 
 
 def seq_subs(data, subs, result):
+    # Process worker
+    # Apply sequential substitions to given data and store in multiprocess
+    # manager value.
     for patn, repl in subs:
         data = pcre2.substitute(patn, repl, data, options=GLOBAL)
     result.value = data
