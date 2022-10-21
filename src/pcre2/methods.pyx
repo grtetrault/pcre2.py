@@ -22,7 +22,7 @@ def compile(pattern, options=0, jit=False):
 
     # Ensure unicode strings are processed with UTF-8 support.
     if PyUnicode_Check(pattern):
-        options = options | PCRE2_UTF | PCRE2_NO_UTF_CHECK
+        options = options | PCRE2_UTF
 
     cdef int compile_rc
     cdef size_t compile_errpos

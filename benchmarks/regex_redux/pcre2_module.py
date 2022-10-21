@@ -6,8 +6,6 @@
 
 import sys
 import pcre2
-import itertools
-import collections
 import multiprocessing as mp
 
 GLOBAL = pcre2.SubstituteOption.GLOBAL

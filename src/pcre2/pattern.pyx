@@ -12,6 +12,7 @@ from cpython.memoryview cimport PyMemoryView_FromMemory
 from .utils cimport *
 from .libpcre2 cimport *
 from .match cimport Match
+from .scanner cimport Scanner
 from .consts import BsrChar, NewlineChar
 
 
@@ -291,74 +292,7 @@ cdef class Pattern:
             subj_type = "string" if is_subj_utf else "bytes-like"
             raise ValueError(f"Cannot use a {patn_type} pattern with a {subj_type} subject")
 
-        patn_opts = Pattern._info_bint(self._code, PCRE2_INFO_ALLOPTIONS)
-        is_patn_utf = (patn_opts & PCRE2_UTF) != 0
-        newline = Pattern._info_uint(self._code, PCRE2_INFO_NEWLINE)
-        is_crlf_newline = (
-            newline == PCRE2_NEWLINE_ANY or
-            newline == PCRE2_NEWLINE_CRLF or
-            newline == PCRE2_NEWLINE_ANYCRLF
-        )
-
-        # Set offsets to keep track of object and byte offset indices.
-        next_obj_ofst = <size_t>offset
-        obj_ofst = 0
-        ofst = 0
-
-        opts = <uint32_t>0
-        match_rc = <int>0
-        subj_len = <size_t>len(subject)
-        while next_obj_ofst <= subj_len:
-            subj = get_buffer(subject)
-
-            # Convert indices accordingly.
-            if is_patn_utf:
-                ofst, obj_ofst = codepoint_to_codeunit(subj, next_obj_ofst, ofst, obj_ofst)
-            else:
-                obj_ofst = next_obj_ofst
-                ofst = obj_ofst
-
-            # Attempt match of pattern onto subject.
-            mtch = Pattern._match(self._code, subj, ofst, opts, &match_rc)
-
-            if match_rc == PCRE2_ERROR_NOMATCH:
-                # Default match is not achored so if no match found at current offset, then there
-                # will not be any ahead either.
-                if opts == 0:
-                    PyBuffer_Release(subj)
-                    break
-
-                # Reset options so empty strings can match at next offset.
-                opts = 0
-
-                # Increment to next character and handle possible CRLF newlines.
-                next_obj_ofst += 1
-                if is_crlf_newline and (ofst + 1) < <size_t>subj.len:
-                    if subj.buf[ofst] == b"\r" and subj.buf[ofst + 1] == b"\n":
-                        next_obj_ofst += 1
-
-            elif mtch == NULL or match_rc < 0:
-                raise_from_rc(match_rc, None)
-
-            else:
-                ovec_table = pcre2_get_ovector_pointer(mtch)
-                mtch_end = ovec_table[1]
-
-                if ofst == mtch_end:
-                    # If the matched string is empty ensure next is not.
-                    opts = PCRE2_NOTEMPTY_ATSTART | PCRE2_ANCHORED
-                else:
-                    # Convert the end in the byte string to the end in the object.
-                    opts = 0
-                    if is_patn_utf:
-                        ofst, obj_ofst = codeunit_to_codepoint(subj, mtch_end, ofst, obj_ofst)
-                        next_obj_ofst = obj_ofst
-                    else:
-                        obj_ofst = mtch_end
-                        ofst = obj_ofst
-                        next_obj_ofst = obj_ofst
-
-                yield Match._from_data(mtch, self, subj, ofst, opts)
+        return Scanner._from_data(self, subject, offset)
 
 
     @staticmethod
