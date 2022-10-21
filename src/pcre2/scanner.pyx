@@ -93,7 +93,6 @@ cdef class Scanner:
 
 
     def __next__(self):
-        print(self._state_obj_ofst, self._state_ofst)
         if self._state_obj_ofst > <size_t>len(self._subject):
             raise StopIteration
 
