@@ -129,6 +129,7 @@ cdef class Scanner:
             else:
                 self._state_obj_ofst = self._state_obj_ofst + obj_ofst_increment
                 self._state_ofst = self._state_obj_ofst
+            return self.__next__()
 
         # Handle all other errors.
         elif mtch == NULL or match_rc < 0:

@@ -12,6 +12,5 @@ src/libpcre2
 src/pcre2/**/*.c
 src/pcre2/**/*.html
 
-tests
 .pytest_cache
 Profile.prof
