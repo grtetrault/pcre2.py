@@ -194,7 +194,7 @@ cdef class Match:
 
 
     def expand(self, replacement, offset=0, options=0, low_memory=False):
-        """ Equivlanet to calling substitute with the provided match.
+        """ Equivalent to calling substitute with the provided match.
         The type of the subject determines the type of the returned string.
         """
         is_subj_utf = <bint>PyUnicode_Check(self._subj.obj)

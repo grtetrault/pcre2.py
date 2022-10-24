@@ -4,13 +4,11 @@ from pcre2.exceptions import CompileError, MatchError, LibraryError
 from pcre2.consts import CompileOption, MatchOption, SubstituteOption
 
 
-
 test_data_pattern_compile_success = [
     (b"a+b+c*d*", 0, "SUCCESS"),
     (b"(?<foo>a+b+)c*d*", 0, "SUCCESS"),
     (b"(?<foo>a+b+))c*d*", 0, "COMPILE_ERROR"),
     ("å+∫+ç*∂*".encode(), 0, "SUCCESS"),
-
     ("a+b+c*d*", 0, "SUCCESS"),
     ("(?<foo>a+b+)c*d*", 0, "SUCCESS"),
     ("(?<foo>a+b+))c*d*", 0, "COMPILE_ERROR"),
@@ -46,6 +44,7 @@ def test_pattern_jit_compile_success(pattern, options, return_code):
 
 
 test_data_pattern_name_dict = [
+    (b"(?<foo>a+b+)c*d*", 0, {1: b"foo"}),
     ("(?<foo>a+b+)c*d*", 0, {1: "foo"}),
     ("(?<ƒøø>a+b+)c*d*", 0, {1: "ƒøø"}),
     ("(?<foo>a+b+)c*d*(?<bar>a+b+)", 0, {1: "foo", 2: "bar"}),
@@ -59,9 +58,10 @@ def test_pattern_name_dict(pattern, options, name_dict):
 
 
 test_data_pattern_match_success = [
+    (b".*", b"abacbaccbacccb", 0, 0, "SUCCESS"),
     (".*", "abacbaccbacccb", 0, 0, "SUCCESS"),
     ("ac{3,}b", "abacbaccbacccb", 0, 0, "SUCCESS"),
-    ("a•{3,}b", "abac•bac••ba•••b", 0, 0, "SUCCESS"),
+    ("a•{3,}b", "aba•ba••ba•••b", 0, 0, "SUCCESS"),
     ("ab", "abacbaccbacccb", 0, 2, "MATCH_ERROR"),
     ("((((((((((((((()))))))))))))))", "", 0, 0, "SUCCESS"),
 ]
@@ -81,6 +81,8 @@ def test_pattern_match_success(pattern, subject, options, offset, return_code):
 
 
 test_data_pattern_scan_length = [
+    (b".+", b"abacbaccbacccb", 0, 1),
+    (b".*", b"abacbaccbacccb", 0, 2),
     (".+", "abacbaccbacccb", 0, 1),
     (".*", "abacbaccbacccb", 0, 2),
     ("[abc]*", "dabacbaccbacccb", 0, 3),
@@ -99,6 +101,7 @@ def test_pattern_scan_length(pattern, subject, offset, iter_length):
 
 
 test_pattern_substitute = [
+    (b"[abc]*", b"", b"dabacbaccbacccb", 0, 0, b"dabacbaccbacccb"),
     ("[abc]*", "", "dabacbaccbacccb", 0, 0, "dabacbaccbacccb"),
     ("[abc]*", "", "dabacbaccbacccb", 0, 1, "d"),
     ("a(•{2,})b", "a•b", "aba•ba••ba•••b", SubstituteOption.GLOBAL, 0, "aba•ba•ba•b"),
