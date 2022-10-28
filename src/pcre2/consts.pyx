@@ -14,7 +14,7 @@ class MetaOption(IntEnum):
 
     @classmethod
     def verify(cls, options):
-        """ Verify a number is composed of compile options.
+        """ Verify a number is composed of options.
         """
         tmp = options
         for opt in cls:
@@ -24,16 +24,20 @@ class MetaOption(IntEnum):
 
     @classmethod
     def decompose(cls, options):
-        """ Decompose a number into its components compile options.
-
-        Return a list of CompileOption enums that are components of the given
-        optins. Note that left over bits are ignored, and veracity can not be
-        determined from the result.
+        """ Decompose a number into its component options, returning a list of
+        MetaOption enums that are components of the given options. Note that
+        left over bits are ignored, and veracity can not be determined from
+        the result.
         """
         return [opt for opt in cls if (opt & options)]
 
 
 class CompileOption(MetaOption):
+    """ Option bits to be used in pattern compilation. See the following PCRE2
+    documentation for a brief overview of the relevant options:
+    http://pcre.org/current/doc/html/pcre2_compile.html
+    """
+
     ALLOW_EMPTY_CLASS = PCRE2_ALLOW_EMPTY_CLASS
     ALT_BSUX = PCRE2_ALT_BSUX
     ALT_CIRCUMFLEX = PCRE2_ALT_CIRCUMFLEX
@@ -56,6 +60,10 @@ class CompileOption(MetaOption):
 
 
 class MatchOption(MetaOption):
+    """ Option bits to be used when matching. See the following PCRE2
+    documentation for a brief overview of the relevant options:
+    http://pcre.org/current/doc/html/pcre2_match.html
+    """
     NOTBOL = PCRE2_NOTBOL
     NOTEOL = PCRE2_NOTEOL
     NOTEMPTY = PCRE2_NOTEMPTY
@@ -63,6 +71,11 @@ class MatchOption(MetaOption):
 
 
 class SubstituteOption(MetaOption):
+    """ Option bits to be used when making pattern substitutions. See the
+    following PCRE2 documentation for a brief overview of the relevant
+    options:
+    http://pcre.org/current/doc/html/pcre2_substitute.html
+    """
     NOTBOL = PCRE2_NOTBOL
     NOTEOL = PCRE2_NOTEOL
     NOTEMPTY = PCRE2_NOTEMPTY
@@ -79,11 +92,15 @@ ExpandOption = SubstituteOption
 
 
 class BsrChar(IntEnum):
+    """ Indicator for what character(s) are denoted by `\r`.
+    """
     UNICODE = PCRE2_BSR_UNICODE
     ANYCRLF = PCRE2_BSR_ANYCRLF
 
 
 class NewlineChar(IntEnum):
+    """ Indicator for what character(s) denote a newline.
+    """
     CR = PCRE2_NEWLINE_CR
     LF = PCRE2_NEWLINE_LF
     CRLF = PCRE2_NEWLINE_CRLF

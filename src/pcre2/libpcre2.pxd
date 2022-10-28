@@ -4,6 +4,7 @@ from libc.stdint cimport uint8_t, uint32_t, int32_t
 
 
 cdef extern from "pcre2.h":
+    # 
     # The following option bits can be passed to pcre2_compile(),
     # pcre2_match(), or pcre2_dfa_match(). PCRE2_NO_UTF_CHECK affects only the
     # function to which it is passed. Put these bits at the most significant
@@ -484,4 +485,3 @@ cdef extern from "pcre2.h":
         pcre2_general_context_t *gcontex
     )
     void pcre2_serialize_free(uint8_t *bytes)
-

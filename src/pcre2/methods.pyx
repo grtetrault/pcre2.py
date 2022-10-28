@@ -13,8 +13,10 @@ from .match cimport Match
 
 
 def compile(pattern, options=0, jit=False):
-    """ Factory function to create Pattern objects with newly compiled
-    pattern.
+    """ Factory function to compile regular expressions into Pattern objects.
+    See the following PCRE2 documentation for a brief overview of the relevant
+    options:
+        http://pcre.org/current/doc/html/pcre2_compile.html
     """
     
     cdef Py_buffer *patn = get_buffer(pattern)
@@ -44,14 +46,21 @@ def compile(pattern, options=0, jit=False):
 
 
 def match(pattern, subject, offset=0, options=0):
+    """ Shorthand for compiling a pattern, then calling match.
+    """
     return compile(pattern).match(subject, offset=offset, options=options)
 
 
 def scan(pattern, subject, offset=0):
+    """ Shorthand for compiling a pattern, then calling scan. Note that this
+    will use JIT compilation.
+    """
     return compile(pattern, jit=True).scan(subject, offset=offset)
 
 
 def substitute(pattern, replacement, subject, offset=0, options=0, low_memory=False):
+    """ Shorthand for compiling a pattern, then calling substitute.
+    """
     pattern_obj = compile(pattern)
     if <int>options & PCRE2_SUBSTITUTE_GLOBAL:
         pattern_obj.jit_compile()

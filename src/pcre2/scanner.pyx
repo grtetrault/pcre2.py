@@ -17,7 +17,15 @@ from .consts import BsrChar, NewlineChar
 
 
 cdef class Scanner:
-    """
+    """ Iterator object that scans a subject all non-overlapping matches of a
+    pattern. Attributes defined in scanner.pxd, see below for an overview:
+        _pattern: Pattern object to use for matching
+        _subject: Subject to scan
+        _is_crlf_newline: Whether the character sequence CRLF denotes a newline
+        _is_patn_utf: Whether the pattern was compiled with UTF support
+        _state_opts: Options to pass to match
+        _state_ofst: Byte offset to match at
+        _state_obj_ofst: Object offset to match at
     """
 
 
@@ -51,11 +59,9 @@ cdef class Scanner:
 
     @staticmethod
     cdef Scanner _from_data(Pattern pattern, object subject, size_t offset):
-        """
-        Factory function to create Scanner objects from C-type fields.
-
-        The ownership of the given pointers are stolen, which causes the
-        extension type to free them when the object is deallocated.
+        """ Factory function to create Scanner objects from C-type fields. The
+        ownership of the given pointers are stolen, which causes the extension
+        type to free them when the object is deallocated.
         """
         # Fast call to __new__() that bypasses the __init__() constructor.
         cdef Scanner scanner = Scanner.__new__(Scanner)
@@ -93,6 +99,8 @@ cdef class Scanner:
 
 
     def __next__(self):
+        """ Yields next match object found in subject.
+        """
         if self._state_obj_ofst > <size_t>len(self._subject):
             raise StopIteration
 

@@ -17,30 +17,28 @@ from .consts import BsrChar, NewlineChar
 
 
 def _rebuild(pattern, code_bytes_obj, options):
-        patn = get_buffer(pattern)
-        opts = <uint32_t>options
-        code_buf = get_buffer(code_bytes_obj)
-        
-        cdef pcre2_code_t *code
-        number_of_codes = pcre2_serialize_decode(&code, 1, <const uint8_t *>code_buf.buf, NULL)
-        if number_of_codes < 0:
-            raise_from_rc(number_of_codes, None)
+    """ Deserializes code object to allow for unpickling.
+    """
+    patn = get_buffer(pattern)
+    opts = <uint32_t>options
+    code_buf = get_buffer(code_bytes_obj)
+    
+    cdef pcre2_code_t *code
+    number_of_codes = pcre2_serialize_decode(&code, 1, <const uint8_t *>code_buf.buf, NULL)
+    if number_of_codes < 0:
+        raise_from_rc(number_of_codes, None)
 
-        return Pattern._from_data(code, patn, opts)
+    return Pattern._from_data(code, patn, opts)
 
 
 cdef class Pattern:
     """
-
-    Attributes:
-
-        See pattern.pxd for attribute definitions.
-        Dynamic attributes are enabled for this class.
-
-        code: Compiled PCRE2 code.
-        opts: PCRE2 compilation options.
-        patn: Buffer containing source pattern expression including byte string
-            and a reference to source object.
+    Object wrapper for a compiled pattern (known as a code struct) in PCRE2.
+    Attributes defined in pattern.pxd, see below for an overview:
+        _code: Raw compiled pattern, managed by PCRE2
+        _patn: Python object passed to compile
+        _opts: Option bits passed to compile call
+        _jitc: Indicator if pattern was JIT compiled
     """
 
     # =================================== #
@@ -71,10 +69,9 @@ cdef class Pattern:
 
     @staticmethod
     cdef Pattern _from_data(pcre2_code_t *code, Py_buffer *patn, uint32_t opts):
-        """ Factory function to create Pattern objects from C-type fields.
-
-        The ownership of the given pointers are stolen, which causes the
-        extension type to free them when the object is deallocated.
+        """ Factory function to create Pattern objects from C-type fields. The
+        ownership of the given pointers are stolen, which causes the extension
+        type to free them when the object is deallocated.
         """
         # Fast call to __new__() that bypasses the __init__() constructor.
         cdef Pattern pattern = Pattern.__new__(Pattern)
@@ -89,6 +86,8 @@ cdef class Pattern:
     # ========================================= #
 
     def __reduce__(self):
+        """ Serializes code object to allow for pickling.
+        """
         cdef uint8_t *code_bytes
         cdef size_t code_count
         serialize_rc = pcre2_serialize_encode(
@@ -106,7 +105,7 @@ cdef class Pattern:
 
     @staticmethod
     cdef uint32_t _info_uint(pcre2_code_t *code, uint32_t what):
-        """ Safely access pattern info returned as uint32_t. 
+        """ Safely access pattern info returned as uint32_t.
         """
         cdef uint32_t where
         pattern_info_rc = pcre2_pattern_info(code, what, &where)
@@ -116,7 +115,7 @@ cdef class Pattern:
 
     @staticmethod
     cdef bint _info_bint(pcre2_code_t *code, uint32_t what):
-        """ Safely access pattern info returned as bint. 
+        """ Safely access pattern info returned as bint.
         """
         cdef bint where
         pattern_info_rc = pcre2_pattern_info(code, what, &where)
@@ -151,8 +150,9 @@ cdef class Pattern:
 
     @property
     def capture_count(self):
-        """ Return the highest capture group number in the pattern. In patterns
-        where (?| is not used, this is also the total number of capture groups.
+        """ Returns the highest capture group number in the pattern. In
+        patterns where `(?|` is not used, this is also the total number of
+        capture groups.
         """
         return Pattern._info_uint(self._code, PCRE2_INFO_CAPTURECOUNT)
 
@@ -174,8 +174,8 @@ cdef class Pattern:
 
     @property
     def newline(self):
-        """ Returns the type of character sequence that will be recognized as 
-        meaning "newline" while matching.
+        """ Returns the type of character sequence that will be recognized as
+        a newline while matching.
         """
         newline = Pattern._info_uint(self._code, PCRE2_INFO_NEWLINE)
         return NewlineChar(newline)
@@ -183,14 +183,13 @@ cdef class Pattern:
 
     @property
     def size(self):
-        """ Return the size of the compiled pattern in bytes.
+        """ Returns the size of the compiled pattern in bytes.
         """
         return Pattern._info_uint(self._code, PCRE2_INFO_SIZE)
 
 
     def name_dict(self):
-        """ Returns a dictionary mapping capture group number to capture group
-        name.
+        """ Returns a mapping from capture group number to capture group name.
         """
         # Get name table related information.
         name_count = Pattern._info_uint(self._code, PCRE2_INFO_NAMECOUNT)
@@ -227,7 +226,7 @@ cdef class Pattern:
     # ======================= #
 
     def jit_compile(self):
-        """ JIT compile the compiled pattern.
+        """ JIT compile the pattern.
         """
         jit_compile_rc = pcre2_jit_compile(self._code, PCRE2_JIT_COMPLETE)
         if jit_compile_rc < 0:
@@ -237,9 +236,12 @@ cdef class Pattern:
     
     @staticmethod
     cdef pcre2_match_data_t * _match(
-        pcre2_code_t *code, Py_buffer *subj, size_t ofst, uint32_t opts, int *rc
-    ):
-        """ Returns error code.
+            pcre2_code_t *code,
+            Py_buffer *subj,
+            size_t ofst,
+            uint32_t opts,
+            int *rc):
+        """ Safe wrapper around calling PCRE2 function directly.
         """
         # Allocate memory for match.
         mtch = pcre2_match_data_create_from_pattern(code, NULL)
@@ -256,7 +258,10 @@ cdef class Pattern:
 
 
     def match(self, subject, offset=0, options=0):
-        """
+        """ If match exists, returns the corresponding Match object. Otherwise
+        a MatchError is thrown in the case of no matches. See the following
+        PCRE2 documentation for a brief overview of the relevant options:
+            http://pcre.org/current/doc/html/pcre2_match.html
         """
         cdef bint is_patn_utf = PyUnicode_Check(self._patn.obj)
         cdef bint is_subj_utf = PyUnicode_Check(subject)
@@ -283,7 +288,8 @@ cdef class Pattern:
 
 
     def scan(self, subject, offset=0):
-        """
+        """ Returns iterator over all non-overlapping matches in a subject,
+        yielding Match objects.
         """
         cdef bint is_patn_utf = PyUnicode_Check(self._patn.obj)
         cdef bint is_subj_utf = PyUnicode_Check(subject)
@@ -297,10 +303,15 @@ cdef class Pattern:
 
     @staticmethod
     cdef (uint8_t *, size_t) _substitute(
-        pcre2_code_t *code, Py_buffer *repl, Py_buffer *subj, size_t res_buf_len,
-        size_t ofst, uint32_t opts, pcre2_match_data_t *mtch, int *rc
-    ):
-        """
+            pcre2_code_t *code,
+            Py_buffer *repl,
+            Py_buffer *subj,
+            size_t res_buf_len,
+            size_t ofst,
+            uint32_t opts,
+            pcre2_match_data_t *mtch,
+            int *rc):
+        """ Safe wrapper around calling PCRE2 function directly.
         """
         cdef size_t res_len = res_buf_len
         cdef uint8_t *res
@@ -312,6 +323,7 @@ cdef class Pattern:
             <pcre2_sptr_t>repl.buf, <size_t>repl.len,
             res, &res_len
         )
+        # Reattempt substitution, now with required size of buffer known.
         if substitute_rc == PCRE2_ERROR_NOMEMORY:
             free(res)
             res = <uint8_t *>malloc(res_len * sizeof(uint8_t))
@@ -334,7 +346,11 @@ cdef class Pattern:
 
 
     def substitute(self, replacement, subject, offset=0, options=0, low_memory=False):
-        """ The type of the subject determines the type of the returned string.
+        """ Returns the string obtained by replaces matches in subject with a
+        replacement. Note that option bits can significantly change the
+        functions behavior. See the following PCRE2 documentation for a brief
+        overview of the relevant options:
+            http://pcre.org/current/doc/html/pcre2_substitute.html
         """
         is_patn_utf = <bint>PyUnicode_Check(self._patn.obj)
         is_subj_utf = <bint>PyUnicode_Check(subject)

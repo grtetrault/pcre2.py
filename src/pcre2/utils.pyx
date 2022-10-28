@@ -29,7 +29,7 @@ from .exceptions import LibraryError, CompileError, MatchError
 
 cdef Py_buffer * get_buffer(object obj) except NULL:
     """ Get a Python buffer from an object, encoding via UTF-8 if unicode
-    based.
+    based
     """
     cdef const char *sptr = NULL
     cdef Py_ssize_t length = 0
@@ -67,7 +67,7 @@ cdef (size_t, size_t) codeunit_to_codepoint(
     size_t codeunit_idx,
     size_t cur_codeunit_idx, size_t cur_codepoint_idx
 ):
-    """ Convert a code unit index to a code point index.
+    """ Convert a code unit index to a code point index
     """
     while cur_codeunit_idx < codeunit_idx:
         if (((<uint8_t *>pybuf.buf)[cur_codeunit_idx]) & 0xC0) != 0x80:
@@ -91,15 +91,11 @@ cdef (size_t, size_t) codepoint_to_codeunit(
 
 
 cdef void * raise_from_rc(int errorcode, object context_msg) except NULL:
-    """ Raise the appropriate error type from the given error code.
+    """ Raise the appropriate error type from the given error code
 
     Raises one of the custom exception classes defined in this module. Each
     exception corresponds to a set of error codes defined in PCRE2. Error
-    messages are retrieved from PCRE2 directly.
-
-    Args:
-        errorcode: An error code from a PCRE2 API call.
-        context_msg: Additional context to append to the PCRE2 error message.
+    messages are retrieved from PCRE2.
     """
     # Match against error code classes.
     if errorcode > 0:

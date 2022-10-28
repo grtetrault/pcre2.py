@@ -17,13 +17,14 @@ from .pattern cimport Pattern
 @cython.freelist(8)
 cdef class Match:
     """
-    See match.pxd for attribute definitions.
-
-    Attributes:
-        mtch:
-        pattern: 
-        subj:
-        opts:
+    Object wrapper for a match block in PCRE2. Contains all relevant
+    information of a successful match. Attributes defined in match.pxd, see
+    below for an overview:
+        _mtch: Raw match data block, managed by PCRE2
+        _pattern: Pattern object used in match
+        _subj: Subject the pattern was matched against
+        _ofst: Byte offset (egardless of subject type) used in  match
+        _opts: Option bits used in match call
     """
 
     # =================================== #
@@ -54,12 +55,14 @@ cdef class Match:
 
     @staticmethod
     cdef Match _from_data(
-        pcre2_match_data_t *mtch, Pattern pattern, Py_buffer *subj, size_t ofst, uint32_t opts
-    ):
-        """ Factory function to create Match objects from C-type fields.
-
-        The ownership of the given pointers are stolen, which causes the
-        extension type to free them when the object is deallocated.
+            pcre2_match_data_t *mtch,
+            Pattern pattern,
+            Py_buffer *subj,
+            size_t ofst,
+            uint32_t opts):
+        """ Factory function to create Match objects from C-type fields. The
+        ownership of the given pointers are stolen, which causes the extension
+        type to free them when the object is deallocated.
         """
 
         # Fast call to __new__() that bypasses the __init__() constructor.
@@ -96,7 +99,8 @@ cdef class Match:
     # ======================= #
 
     def start(self, group=0):
-        """
+        """ Get the starting index of the matched substring, or of a specified
+        captured group.
         """
         ovec_count = pcre2_get_ovector_count(self._mtch)
         ovec_table = pcre2_get_ovector_pointer(self._mtch)
@@ -128,7 +132,8 @@ cdef class Match:
 
 
     def end(self, group=0):
-        """
+        """ Get the ending index of the matched substring, or of a specified
+        captured group.
         """
         ovec_count = pcre2_get_ovector_count(self._mtch)
         ovec_table = pcre2_get_ovector_pointer(self._mtch)
@@ -160,7 +165,8 @@ cdef class Match:
 
 
     def substring(self, group=0):
-        """
+        """ Get the full matched substring, or that of a specified captured
+        group.
         """
         cdef uint8_t *res
         cdef size_t res_len
@@ -188,14 +194,14 @@ cdef class Match:
 
 
     def __getitem__(self, group):
-        """
+        """ Alias to substring.
         """
         return self.substring(group)
 
 
     def expand(self, replacement, offset=0, options=0, low_memory=False):
-        """ Equivalent to calling substitute with the provided match.
-        The type of the subject determines the type of the returned string.
+        """ Equivalent to calling substitute with the provided match. The type
+        of the subject determines the type of the returned string.
         """
         is_subj_utf = <bint>PyUnicode_Check(self._subj.obj)
         is_repl_utf = <bint>PyUnicode_Check(replacement)

@@ -38,7 +38,8 @@ class LibraryError(Exception):
 
 
 class CompileError(LibraryError):
-    """ An error occured during libpcre2.compile().
+    """ Raised when pattern is malformed or is otherwise unable to be
+    compiled.
     """
     
     def __init__(self, errorcode, context_msg=""):
@@ -49,14 +50,14 @@ class CompileError(LibraryError):
 
 
 class MatchError(LibraryError):
-    """ Raised when no or partial match found in libpcre2.match().
+    """ Raised when no or partial match found.
     """
     
     def __init__(self, errorcode, context_msg=""):
         if not (errorcode == PCRE2_ERROR_NOMATCH or errorcode == PCRE2_ERROR_PARTIAL):
             raise ValueError(
-                f"Invalid error code '{errorcode}'. Match error codes can only be of value PCRE2_ERROR_NOMATCH or PCRE2_ERROR_PARTIAL"
+                f"Invalid error code '{errorcode}'. "
+                "Match error codes can only be of value PCRE2_ERROR_NOMATCH or PCRE2_ERROR_PARTIAL"
             )
         
         super().__init__(errorcode, context_msg=context_msg)
-
