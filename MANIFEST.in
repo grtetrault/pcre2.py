@@ -1,0 +1,4 @@
+include LICENSE
+include README.md
+recursive-include src/libpcre2 *
+exclude src/pcre2*.c src/pcre2/*.html
