@@ -107,3 +107,15 @@ class NewlineChar(IntEnum):
     ANY = PCRE2_NEWLINE_ANY
     ANYCRLF = PCRE2_NEWLINE_ANYCRLF
     NUL = PCRE2_NEWLINE_NUL
+
+
+# Shorthands
+A = CompileOption.ANCHORED
+I = CompileOption.CASELESS
+G = SubstituteOption.GLOBAL
+M = CompileOption.MULTILINE
+NE = MatchOption.NOTEMPTY
+NS = MatchOption.NOTEMPTY_ATSTART
+U = CompileOption.UTF
+S = CompileOption.DOTALL
+X = CompileOption.EXTENDED

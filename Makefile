@@ -7,11 +7,17 @@ init:
 	./.venv/bin/pip3 install -r ./requirements/test-requirements.txt
 	./.venv/bin/python3 ./tools/download_libpcre2_release.py
 
-build:
+build_wheel:
 	./.venv/bin/python3 setup.py bdist_wheel
 
-install:
+build_sdist:
+	./.venv/bin/python3 setup.py sdist
+
+install_wheel:
 	./.venv/bin/pip3 install dist/pcre2*.whl --force-reinstall
+
+install_sdist:
+	./.venv/bin/pip3 install dist/pcre2*.tar.gz[all] --force-reinstall
 
 clean:
 	rm -rf build
