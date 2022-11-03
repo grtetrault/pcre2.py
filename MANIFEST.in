@@ -1,4 +1,6 @@
 include LICENSE
 include README.md
+include libpcre2.cfg
 recursive-include src/libpcre2 *
-exclude src/pcre2*.c src/pcre2/*.html
+include src/pcre2/*.py src/pcre2/*.pyx src/pcre2/*.pxd
+exclude src/pcre2/*.c src/pcre2/*.html

@@ -15,10 +15,10 @@ build_sdist:
 	python3 setup.py sdist
 
 install_wheel:
-	pip3 install dist/pcre2*.whl --force-reinstall
+	pip3 install dist/pcre2-*.whl --force-reinstall
 
 install_sdist:
-	pip3 install dist/pcre2*.tar.gz[all] --force-reinstall
+	pip3 install dist/pcre2-*.tar.gz --force-reinstall
 
 clean:
 	rm -rf build
