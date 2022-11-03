@@ -1,23 +1,24 @@
 SHELL = /bin/bash
 
-init:
-	# Create venv, pull dependencies
+venv:
 	python3 -m venv .venv
-	./.venv/bin/pip3 install -r ./requirements/build-requirements.txt
-	./.venv/bin/pip3 install -r ./requirements/test-requirements.txt
-	./.venv/bin/python3 ./tools/download_libpcre2_release.py
+
+init:
+	pip3 install -r ./requirements/build-requirements.txt
+	pip3 install -r ./requirements/test-requirements.txt
+	python3 ./tools/download_libpcre2_release.py
 
 build_wheel:
-	./.venv/bin/python3 setup.py bdist_wheel
+	python3 setup.py bdist_wheel
 
 build_sdist:
-	./.venv/bin/python3 setup.py sdist
+	python3 setup.py sdist
 
 install_wheel:
-	./.venv/bin/pip3 install dist/pcre2*.whl --force-reinstall
+	pip3 install dist/pcre2*.whl --force-reinstall
 
 install_sdist:
-	./.venv/bin/pip3 install dist/pcre2*.tar.gz[all] --force-reinstall
+	pip3 install dist/pcre2*.tar.gz[all] --force-reinstall
 
 clean:
 	rm -rf build
@@ -32,4 +33,4 @@ purge:
 	rm -rf .venv
 
 benchmark:
-	./.venv/bin/python3 ./benchmark/run_regex_redux.py
+	python3 ./benchmarks/run_regex_redux.py
