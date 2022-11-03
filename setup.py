@@ -26,6 +26,7 @@ class Pcre2BuildExt(setuptools.command.build_ext.build_ext):
     pcre2_build_cmds = [
         [
             "./configure",
+            "CFLAGS=-fPIC",
             "--enable-jit",
             "--enable-never-backslash-C",
             f"--prefix={PCRE2_CWD.resolve()}"
