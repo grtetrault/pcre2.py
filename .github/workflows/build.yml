@@ -46,16 +46,18 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: macos-latest
-            build: "cp*-macosx*"
-          # - os: windows-latest
-          #   build: "cp*-win_amd64"
-          - os: ubuntu-latest
-            build: "cp*-manylinux_x86_64"
-          - os: ubuntu-latest
-            build: "cp*-musllinux_x86_64"
-          - os: ubuntu-latest
-            build: "cp*-manylinux_aarch64"
+          # - os: macos-latest
+          #   build: "cp*-macosx_x86_64"
+          # - os: macos-latest
+          #   build: "cp*-macosx_arm64"
+          - os: windows-latest
+            build: "cp*-win_amd64"
+          # - os: ubuntu-latest
+          #   build: "cp*-manylinux_x86_64"
+          # - os: ubuntu-latest
+          #   build: "cp*-musllinux_x86_64"
+          # - os: ubuntu-latest
+          #   build: "cp*-manylinux_aarch64"
 
     steps:
       - uses: actions/checkout@v3
