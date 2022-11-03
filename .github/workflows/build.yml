@@ -73,7 +73,8 @@ jobs:
           CIBW_TEST_COMMAND: pytest {project}/tests
           CIBW_ARCHS_LINUX: auto aarch64
           CIBW_ARCHS_MACOS: x86_64 arm64
-          # CIBW_ARCHS_WINDOWS: auto64
+          CIBW_BUILD: ${{ matrix.build }}
+          CIBW_SKIP: ${{ matrix.skip }}
 
       - name: Upload artifacts to GitHub
         uses: actions/upload-artifact@v3
