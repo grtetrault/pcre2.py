@@ -48,8 +48,8 @@ jobs:
         include:
           - os: macos-latest
             build: "cp*-macosx*"
-          - os: windows-latest
-            build: "cp*-win_amd64"
+          # - os: windows-latest
+          #   build: "cp*-win_amd64"
           - os: ubuntu-latest
             build: "cp*-manylinux_x86_64"
           - os: ubuntu-latest
