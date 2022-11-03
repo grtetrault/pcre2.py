@@ -47,6 +47,12 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest] #, windows-latest]
         python-version: ["3.5", "3.6", "3.7", "3.8", "3.9", "3.10", "3.11"]
+        include:
+          - build: "cp*-macosx*"
+          - build: "cp3*-win_amd64"
+          - build: "cp*-manylinux_x86_64"
+          - build: "cp*-musllinux_x86_64"
+          - build: "cp*-manylinux_aarch64"
 
     steps:
       - uses: actions/checkout@v3
