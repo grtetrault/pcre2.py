@@ -40,50 +40,39 @@ jobs:
   #       with:
   #         path: ./dist/*.tar.gz
 
-  build_wheels:
+
+  build_win_wheels:
     name: "build_wheels: ${{ matrix.name }}"
-    runs-on: ${{ matrix.os }}
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+
     strategy:
       matrix:
         include:
-          # - os: macos-latest
-          #   build: "cp*-macosx_x86_64"
-          # - os: macos-latest
-          #   build: "cp*-macosx_arm64"
-          - os: windows-latest
+          - name: Windows AMD64
             build: "cp*-win_amd64"
-          # - os: ubuntu-latest
-          #   build: "cp*-manylinux_x86_64"
-          # - os: ubuntu-latest
-          #   build: "cp*-musllinux_x86_64"
-          # - os: ubuntu-latest
-          #   build: "cp*-manylinux_aarch64"
 
     steps:
       - uses: actions/checkout@v3
 
       - uses: msys2/setup-msys2@v2
-        if: runner.os == 'Windows'
         with:
           msystem: MINGW64
-          update: true
-          install: git mingw-w64-x86_64-toolchain
+          install: gcc make
 
-      - name: Put MSYS2_MinGW64 on path
-        if: runner.os == 'Windows'
-        shell: msys2 {0}
-        run: export PATH=D:/a/_temp/msys/msys64/mingw64/bin:$PATH
+      - run: make CC=gcc
 
       - name: Init local environment
         run: make init
 
       - name: Build wheels with CIBuildWheel
+        shell: msys2 {0}
         uses: pypa/cibuildwheel@v2.11.2
         env:
           CIBW_TEST_REQUIRES: pytest
           CIBW_TEST_COMMAND: pytest {project}/tests
-          CIBW_ARCHS_LINUX: auto aarch64
-          CIBW_ARCHS_MACOS: x86_64 arm64
           CIBW_BUILD: ${{ matrix.build }}
           CIBW_SKIP: ${{ matrix.skip }}
 
@@ -91,6 +80,49 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           path: ./wheelhouse/*.whl
+
+  # build_unix_wheels:
+  #   name: "build_wheels: ${{ matrix.name }}"
+  #   runs-on: ${{ matrix.os }}
+  #   strategy:
+  #     matrix:
+  #       include:
+  #         - name: macOS x86-64
+  #           os: macos-latest
+  #           build: "cp*-macosx_x86_64"
+  #         - name: macOS ARM64
+  #           os: macos-latest
+  #           build: "cp*-macosx_arm64"
+  #         - name: Ubuntu x86-64
+  #           os: ubuntu-latest
+  #           build: "cp*-manylinux_x86_64"
+  #         - name: Ubuntu x86-64 with MUSL
+  #           os: ubuntu-latest
+  #           build: "cp*-musllinux_x86_64"
+  #         - name: Ubuntu Aarch64
+  #           os: ubuntu-latest
+  #           build: "cp*-manylinux_aarch64"
+
+  #   steps:
+  #     - uses: actions/checkout@v3
+
+  #     - name: Init local environment
+  #       run: make init
+
+  #     - name: Build wheels with CIBuildWheel
+  #       uses: pypa/cibuildwheel@v2.11.2
+  #       env:
+  #         CIBW_TEST_REQUIRES: pytest
+  #         CIBW_TEST_COMMAND: pytest {project}/tests
+  #         CIBW_ARCHS_LINUX: auto aarch64
+  #         CIBW_ARCHS_MACOS: x86_64 arm64
+  #         CIBW_BUILD: ${{ matrix.build }}
+  #         CIBW_SKIP: ${{ matrix.skip }}
+
+  #     - name: Upload artifacts to GitHub
+  #       uses: actions/upload-artifact@v3
+  #       with:
+  #         path: ./wheelhouse/*.whl
 
   # upload_pypi:
   #   needs: [build_sdist, build_wheels]
