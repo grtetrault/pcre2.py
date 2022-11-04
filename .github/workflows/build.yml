@@ -69,7 +69,7 @@ jobs:
           update: true
           install: git mingw-w64-x86_64-toolchain
 
-       - name: Put MSYS2_MinGW64 on path
+      - name: Put MSYS2_MinGW64 on path
         if: runner.os == 'Windows'
         shell: msys2 {0}
         run: export PATH=D:/a/_temp/msys/msys64/mingw64/bin:$PATH
