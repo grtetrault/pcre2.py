@@ -31,14 +31,14 @@ class Pcre2BuildExt(setuptools.command.build_ext.build_ext):
             "--enable-never-backslash-C",
             f"--prefix={PCRE2_CWD.resolve()}"
         ],
-        ["./make"]
+        ["make"]
     ]
 
     def run(self):
         # Run commands to build library if not already created.
         if not self.pcre2_static_lib.exists():
             for cmd in self.pcre2_build_cmds:
-                subprocess.check_call(cmd, cwd=PCRE2_CWD)
+                subprocess.check_call(cmd, cwd=PCRE2_CWD, shell="bash")
 
         setuptools.command.build_ext.build_ext.run(self)
 
@@ -54,9 +54,7 @@ pcre2_extension = setuptools.extension.Extension(
 )
 
 cython_kwargs = {
-    "language_level": "3",
-    "annotate": True,
-    "compiler_directives": {"profile": True}
+    "language_level": "3"
 }
 
 # See setup.cfg for static metadata.
