@@ -1,5 +1,6 @@
 # -*- coding:utf-8 -*-
 
+import os
 import pathlib
 import subprocess
 import configparser
@@ -8,6 +9,8 @@ import setuptools
 import setuptools.extension
 import setuptools.command.build_ext
 import Cython.Build
+
+SHELL = "bash" if 
 
 PROJ_CWD = pathlib.Path(__file__).parent
 LIBPCRE2_CONFIG = PROJ_CWD.joinpath("libpcre2.cfg")
@@ -38,7 +41,7 @@ class Pcre2BuildExt(setuptools.command.build_ext.build_ext):
         # Run commands to build library if not already created.
         if not self.pcre2_static_lib.exists():
             for cmd in self.pcre2_build_cmds:
-                subprocess.check_call(cmd, cwd=PCRE2_CWD, shell="bash")
+                subprocess.check_call(cmd, cwd=PCRE2_CWD.resolve(), shell="bash")
 
         setuptools.command.build_ext.build_ext.run(self)
 

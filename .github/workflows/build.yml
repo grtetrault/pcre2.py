@@ -46,7 +46,7 @@ jobs:
     runs-on: windows-latest
     defaults:
       run:
-        shell: bash
+        shell: msys2 {0}
 
     strategy:
       matrix:
@@ -55,11 +55,11 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      # - name: Setup MSYS2
-      #   uses: msys2/setup-msys2@v2
-      #   with:
-      #     msystem: MINGW64
-      #     install: make
+      - name: Setup MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          install: make
 
       - name: Setup Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
