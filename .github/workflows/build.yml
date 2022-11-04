@@ -60,9 +60,10 @@ jobs:
       - uses: msys2/setup-msys2@v2
         with:
           msystem: MINGW64
-          install: gcc make
+          install: make
 
-      - run: make CC=gcc
+      # - name: Set compiler to GCC
+      #   run: echo "CC=gcc.exe"
 
       - name: Init local environment
         run: make init
