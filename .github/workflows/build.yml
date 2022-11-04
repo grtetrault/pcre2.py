@@ -62,13 +62,17 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - uses: ilammy/msvc-dev-cmd@v1.10.0
+      - uses: msys2/setup-msys2@v2
         if: runner.os == 'Windows'
+        with:
+          msystem: MINGW64
+          update: true
+          install: git mingw-w64-x86_64-toolchain
 
-      - name: Set Windows variables
+       - name: Put MSYS2_MinGW64 on path
         if: runner.os == 'Windows'
-        shell: bash
-        run: echo "CC=cl.exe" >> $GITHUB_ENV
+        shell: msys2 {0}
+        run: export PATH=D:/a/_temp/msys/msys64/mingw64/bin:$PATH
 
       - name: Init local environment
         run: make init
