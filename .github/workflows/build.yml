@@ -26,6 +26,9 @@ jobs:
   #     - name: Init local environment
   #       run: make init
 
+  #     - name: Build PCRE2 library
+  #       run: make build_lib
+
   #     - name: Build source distribution
   #       run: make build_sdist
 
@@ -59,7 +62,7 @@ jobs:
         uses: msys2/setup-msys2@v2
         with:
           msystem: MINGW64
-          install: make autotools
+          install: make autotools python
 
       - name: Setup Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
@@ -68,6 +71,10 @@ jobs:
 
       - name: Init local environment
         run: make init
+
+      - name: Build PCRE2 library
+        run: make build_lib
+        shell: msys2 {0}
 
       - name: Build wheel
         run: make build_wheel
@@ -110,6 +117,9 @@ jobs:
 
   #     - name: Init local environment
   #       run: make init
+
+  #     - name: Build PCRE2 library
+  #       run: make build_lib
 
   #     - name: Build wheels with CIBuildWheel
   #       uses: pypa/cibuildwheel@v2.11.2

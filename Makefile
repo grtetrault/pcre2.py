@@ -8,6 +8,9 @@ init:
 	pip3 install -r ./requirements/test-requirements.txt
 	python3 ./tools/download_libpcre2_release.py
 
+build_lib:
+	python3 ./tools/build_libpcre2.py
+
 build_wheel:
 	python3 ./setup.py bdist_wheel
 
