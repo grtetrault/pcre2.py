@@ -69,7 +69,7 @@ jobs:
         run: make init
 
       - name: Build wheels with CIBuildWheel
-        uses: pypa/cibuildwheel@v2.4.0
+        uses: pypa/cibuildwheel@v2.11.2
         env:
           CIBW_TEST_REQUIRES: pytest
           CIBW_TEST_COMMAND: pytest {project}/tests
