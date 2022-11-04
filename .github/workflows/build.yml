@@ -42,25 +42,24 @@ jobs:
 
 
   build_win_wheels:
-    name: "build_wheels: ${{ matrix.name }}"
+    name: "build_win_wheels: CPython ${{ matrix.python-version }}"
     runs-on: windows-latest
     defaults:
       run:
-        shell: msys2 {0}
+        shell: bash
 
     strategy:
       matrix:
         python-version: ["3.5", "3.6", "3.7", "3.8", "3.9", "3.10", "3.11"]
-        build: ["cp*-win_amd64"]
 
     steps:
       - uses: actions/checkout@v3
 
-      - name: Setup MSYS2
-        uses: msys2/setup-msys2@v2
-        with:
-          msystem: MINGW64
-          install: make
+      # - name: Setup MSYS2
+      #   uses: msys2/setup-msys2@v2
+      #   with:
+      #     msystem: MINGW64
+      #     install: make
 
       - name: Setup Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
@@ -70,21 +69,22 @@ jobs:
       - name: Init local environment
         run: make init
 
-      - name: Build wheels with CIBuildWheel
-        run: pipx run cibuildwheel==2.11.2
-        env:
-          CIBW_TEST_REQUIRES: pytest
-          CIBW_TEST_COMMAND: pytest {project}/tests
-          CIBW_BUILD: ${{ matrix.build }}
-          CIBW_SKIP: ${{ matrix.skip }}
+      - name: Build wheel
+        run: make build_wheel
+
+      - name: Install from wheel
+        run: make install_wheel
+
+      - name: Test installed package
+        run: pytest --full-trace
 
       - name: Upload artifacts to GitHub
         uses: actions/upload-artifact@v3
         with:
-          path: ./wheelhouse/*.whl
+          path: ./dist/*.whl
 
   # build_unix_wheels:
-  #   name: "build_wheels: ${{ matrix.name }}"
+  #   name: "build_unix_wheels: ${{ matrix.name }}"
   #   runs-on: ${{ matrix.os }}
   #   strategy:
   #     matrix:
