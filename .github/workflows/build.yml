@@ -62,8 +62,8 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - uses: ilammy/msvc-dev-cmd@v1.10.0
-        if: runner.os == 'Windows'
+      # - uses: ilammy/msvc-dev-cmd@v1.10.0
+      #   if: runner.os == 'Windows'
 
       - name: Init local environment
         run: make init
