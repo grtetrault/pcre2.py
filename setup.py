@@ -1,7 +1,7 @@
 # -*- coding:utf-8 -*-
 
-import os
 import pathlib
+import platform
 import subprocess
 import configparser
 
@@ -10,7 +10,7 @@ import setuptools.extension
 import setuptools.command.build_ext
 import Cython.Build
 
-SHELL = "bash" if 
+LIBPCRE2_BUILD_SHELL = "msys2" if platform.system() == "Windows" else "bash"
 
 PROJ_CWD = pathlib.Path(__file__).parent
 LIBPCRE2_CONFIG = PROJ_CWD.joinpath("libpcre2.cfg")
@@ -41,7 +41,7 @@ class Pcre2BuildExt(setuptools.command.build_ext.build_ext):
         # Run commands to build library if not already created.
         if not self.pcre2_static_lib.exists():
             for cmd in self.pcre2_build_cmds:
-                subprocess.check_call(cmd, cwd=PCRE2_CWD.resolve(), shell="bash")
+                subprocess.check_call(cmd, cwd=PCRE2_CWD.resolve(), shell=LIBPCRE2_BUILD_SHELL)
 
         setuptools.command.build_ext.build_ext.run(self)
 
