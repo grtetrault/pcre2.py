@@ -50,26 +50,28 @@ jobs:
 
     strategy:
       matrix:
-        include:
-          - name: Windows AMD64
-            build: "cp*-win_amd64"
+        python-version: ["3.5", "3.6", "3.7", "3.8", "3.9", "3.10", "3.11"]
+        build: ["cp*-win_amd64"]
 
     steps:
       - uses: actions/checkout@v3
 
-      - uses: msys2/setup-msys2@v2
+      - name: Setup MSYS2
+        uses: msys2/setup-msys2@v2
         with:
           msystem: MINGW64
           install: make
 
-      # - name: Set compiler to GCC
-      #   run: echo "CC=gcc.exe"
+      - name: Setup Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
 
       - name: Init local environment
         run: make init
 
       - name: Build wheels with CIBuildWheel
-        uses: pypa/cibuildwheel@v2.11.2
+        run: pipx run cibuildwheel==2.11.2
         env:
           CIBW_TEST_REQUIRES: pytest
           CIBW_TEST_COMMAND: pytest {project}/tests
