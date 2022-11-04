@@ -62,12 +62,13 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      # - uses: ilammy/msvc-dev-cmd@v1.10.0
-      #   if: runner.os == 'Windows'
+      - uses: ilammy/msvc-dev-cmd@v1.10.0
+        if: runner.os == 'Windows'
+
       - name: Set Windows variables
         if: runner.os == 'Windows'
         shell: bash
-        run: echo "CC=gcc.exe" >> $GITHUB_ENV
+        run: echo "CC=cl.exe" >> $GITHUB_ENV
 
       - name: Init local environment
         run: make init
