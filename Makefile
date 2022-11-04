@@ -9,7 +9,7 @@ init:
 	python3 ./tools/download_libpcre2_release.py
 
 build_lib:
-	python3 ./tools/build_libpcre2.py
+	python3 tools/build_libpcre2.py
 
 build_wheel:
 	python3 ./setup.py bdist_wheel
