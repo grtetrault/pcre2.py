@@ -31,7 +31,7 @@ class Pcre2BuildExt(setuptools.command.build_ext.build_ext):
             "--enable-never-backslash-C",
             f"--prefix={PCRE2_CWD.resolve()}"
         ],
-        ["make"]
+        ["./make"]
     ]
 
     def run(self):
