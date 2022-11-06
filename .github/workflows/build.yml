@@ -44,73 +44,16 @@ jobs:
   #         path: ./dist/*.tar.gz
 
 
-  build_win_wheels:
-    name: "build_win_wheels: CPython ${{ matrix.python-version }}"
-    runs-on: windows-latest
-    defaults:
-      run:
-        shell: bash
+  # build_win_wheels:
+  #   name: "build_win_wheels: CPython ${{ matrix.python-version }}"
+  #   runs-on: windows-latest
+  #   defaults:
+  #     run:
+  #       shell: bash
 
-    strategy:
-      matrix:
-        python-version: [3.9] # ["3.6", "3.7", "3.8", "3.9", "3.10", "3.11"]
-
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Setup MSYS2
-        uses: msys2/setup-msys2@v2
-        with:
-          msystem: MINGW64
-          install: make autotools python
-
-      - name: Setup Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Init local environment
-        run: make init
-
-      - name: Build PCRE2 library
-        run: make build_lib
-        shell: msys2 {0}
-
-      - name: Build wheel
-        run: make build_wheel
-
-      - name: Install from wheel
-        run: make install_wheel
-
-      - name: Test installed package
-        run: pytest --full-trace
-
-      - name: Upload artifacts to GitHub
-        uses: actions/upload-artifact@v3
-        with:
-          path: ./dist/*.whl
-
-  # build_unix_wheels:
-  #   name: "build_unix_wheels: ${{ matrix.name }}"
-  #   runs-on: ${{ matrix.os }}
   #   strategy:
   #     matrix:
-  #       include:
-  #         - name: macOS x86-64
-  #           os: macos-latest
-  #           build: "cp*-macosx_x86_64"
-  #         - name: macOS ARM64
-  #           os: macos-latest
-  #           build: "cp*-macosx_arm64"
-  #         - name: Ubuntu x86-64
-  #           os: ubuntu-latest
-  #           build: "cp*-manylinux_x86_64"
-  #         - name: Ubuntu x86-64 with MUSL
-  #           os: ubuntu-latest
-  #           build: "cp*-musllinux_x86_64"
-  #         - name: Ubuntu Aarch64
-  #           os: ubuntu-latest
-  #           build: "cp*-manylinux_aarch64"
+  #       python-version: [3.9] # ["3.6", "3.7", "3.8", "3.9", "3.10", "3.11"]
 
   #   steps:
   #     - uses: actions/checkout@v3
@@ -120,21 +63,70 @@ jobs:
 
   #     - name: Build PCRE2 library
   #       run: make build_lib
+  #       shell: msys2 {0}
 
-  #     - name: Build wheels with CIBuildWheel
-  #       uses: pypa/cibuildwheel@v2.11.2
-  #       env:
-  #         CIBW_TEST_REQUIRES: pytest
-  #         CIBW_TEST_COMMAND: pytest {project}/tests
-  #         CIBW_ARCHS_LINUX: auto aarch64
-  #         CIBW_ARCHS_MACOS: x86_64 arm64
-  #         CIBW_BUILD: ${{ matrix.build }}
-  #         CIBW_SKIP: ${{ matrix.skip }}
+  #     - name: Build wheel
+  #       run: make build_wheel
+
+  #     - name: Install from wheel
+  #       run: make install_wheel
+
+  #     - name: Test installed package
+  #       run: pytest --full-trace
 
   #     - name: Upload artifacts to GitHub
   #       uses: actions/upload-artifact@v3
   #       with:
-  #         path: ./wheelhouse/*.whl
+  #         path: ./dist/*.whl
+
+  build_unix_wheels:
+    name: "build_unix_wheels: ${{ matrix.name }}"
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - name: Windows AMD64
+            os: windows-latest
+            build: cp39-win_amd64
+          # - name: macOS x86-64
+          #   os: macos-latest
+          #   build: "cp*-macosx_x86_64"
+          # - name: macOS ARM64
+          #   os: macos-latest
+          #   build: "cp*-macosx_arm64"
+          # - name: Ubuntu x86-64
+          #   os: ubuntu-latest
+          #   build: "cp*-manylinux_x86_64"
+          # - name: Ubuntu x86-64 with MUSL
+          #   os: ubuntu-latest
+          #   build: "cp*-musllinux_x86_64"
+          # - name: Ubuntu Aarch64
+          #   os: ubuntu-latest
+          #   build: "cp*-manylinux_aarch64"
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Init local environment
+        run: make init
+
+      - name: Build PCRE2 library
+        run: make build_lib
+
+      - name: Build wheels with CIBuildWheel
+        uses: pypa/cibuildwheel@v2.11.2
+        env:
+          CIBW_TEST_REQUIRES: pytest
+          CIBW_TEST_COMMAND: pytest {project}/tests
+          CIBW_ARCHS_LINUX: auto aarch64
+          CIBW_ARCHS_MACOS: x86_64 arm64
+          CIBW_BUILD: ${{ matrix.build }}
+          CIBW_SKIP: ${{ matrix.skip }}
+
+      - name: Upload artifacts to GitHub
+        uses: actions/upload-artifact@v3
+        with:
+          path: ./wheelhouse/*.whl
 
   # upload_pypi:
   #   needs: [build_sdist, build_wheels]

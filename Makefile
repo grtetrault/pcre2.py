@@ -1,39 +1,27 @@
 SHELL = /bin/bash
 
-venv:
-	python3 -m venv ./.venv
-
 init:
-	pip3 install -r ./requirements/build-requirements.txt
-	pip3 install -r ./requirements/test-requirements.txt
-	python3 ./tools/download_libpcre2_release.py
+	git submodule update --init
+	python3 -m venv ./.venv
+	./.venv/bin/pip install -r ./requirements/build-requirements.txt
+	./.venv/bin/pip install -r ./requirements/test-requirements.txt
+	./.venv/bin/pip install .
 
-build_lib:
-	python3 tools/build_libpcre2.py
-
-build_wheel:
-	python3 ./setup.py bdist_wheel
-
-build_sdist:
-	python3 ./setup.py sdist
-
-install_wheel:
-	pip3 install ./dist/pcre2-*.whl --force-reinstall
-
-install_sdist:
-	pip3 install ./dist/pcre2-*.tar.gz --force-reinstall
+rebuild:
+	./.venv/bin/pip install . --force-reinstall
 
 clean:
-	rm -rf ./build
 	rm -rf ./dist
+	rm -rf ./build
+	rm -rf ./_skbuild
 	find ./src/pcre2 -type f -name '*.c' -print0 | xargs -0 rm -vf
 	find ./src/pcre2 -type f -name '*.html' -print0 | xargs -0 rm -vf
-	find . -type d -name '*.egg-info' | xargs rm -r
 	find . -type f -name '*.pyc' | xargs rm -r
+	find . -type d -name '*.egg-info' | xargs rm -r
 	find . -type d -name '*.ipynb_checkpoints' | xargs rm -r
 
 purge:
 	rm -rf ./.venv
 
 benchmark:
-	python3 ./benchmarks/run_regex_redux.py
+	./.venv/bin/python ./benchmarks/run_regex_redux.py

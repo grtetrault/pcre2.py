@@ -1,0 +1,3 @@
+[submodule "src/libpcre2"]
+	path = src/libpcre2
+	url = https://github.com/PCRE2Project/pcre2.git
