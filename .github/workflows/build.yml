@@ -106,12 +106,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
-
-      - name: Init local environment
-        run: make init
-
-      - name: Build PCRE2 library
-        run: make build_lib
+        with:
+            submodules: recursive
 
       - name: Build wheels with CIBuildWheel
         uses: pypa/cibuildwheel@v2.11.2
@@ -122,6 +118,9 @@ jobs:
           CIBW_ARCHS_MACOS: x86_64 arm64
           CIBW_BUILD: ${{ matrix.build }}
           CIBW_SKIP: ${{ matrix.skip }}
+
+      - name: Check with Twine
+        run: pipx run twine check wheelhouse/*
 
       - name: Upload artifacts to GitHub
         uses: actions/upload-artifact@v3
