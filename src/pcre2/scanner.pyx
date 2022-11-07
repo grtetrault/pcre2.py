@@ -125,7 +125,7 @@ cdef class Scanner:
             # Increment to next character and handle possible CRLF newlines.
             obj_ofst_increment = 1
             if self._is_crlf_newline and (self._state_ofst + 1) < <size_t>subj.len:
-                if subj.buf[self._state_ofst] == b"\r" and subj.buf[self._state_ofst + 1] == b"\n":
+                if (<bytes>subj.buf)[self._state_ofst:self._state_ofst + 2] == b"\r\n": # and subj.buf[self._state_ofst + 1] == b"\n":
                     obj_ofst_increment += 1
 
             # Convert indices accordingly.
