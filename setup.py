@@ -40,7 +40,6 @@ skbuild.setup(
         "Operating System :: POSIX :: Linux",
         "Operating System :: Microsoft :: Windows"
     ],
-
     include_package_data=True,
     packages = setuptools.find_packages("src"),
     package_dir = {"": "src"},
