@@ -112,11 +112,6 @@ jobs:
       - uses: ilammy/msvc-dev-cmd@v1.10.0
         if: runner.os == 'Windows'
 
-      - name: Set Windows variables
-        if: runner.os == 'Windows'
-        shell: bash
-        run: echo "CC=cl.exe" >> $GITHUB_ENV
-
       - name: Build wheels with CIBuildWheel
         uses: pypa/cibuildwheel@v2.11.2
         env:
