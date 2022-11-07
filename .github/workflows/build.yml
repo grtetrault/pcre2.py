@@ -78,6 +78,12 @@ jobs:
         shell: bash
         run: echo "CC=cl.exe" >> $GITHUB_ENV
 
+      - name: Set up QEMU
+        if: runner.os == 'Linux'
+        uses: docker/setup-qemu-action@v1.2.0
+        with:
+          platforms: aarch64
+
       - name: Build wheels with CIBuildWheel
         uses: pypa/cibuildwheel@v2.11.2
         env:
