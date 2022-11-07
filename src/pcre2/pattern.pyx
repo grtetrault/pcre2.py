@@ -104,7 +104,7 @@ cdef class Pattern:
     # =================================== #
 
     @staticmethod
-    cdef uint32_t _info_uint(pcre2_code_t *code, uint32_t what):
+    cdef uint32_t _info_uint(pcre2_code_t *code, uint32_t what) except *:
         """ Safely access pattern info returned as uint32_t.
         """
         cdef uint32_t where
@@ -114,7 +114,17 @@ cdef class Pattern:
         return where
 
     @staticmethod
-    cdef bint _info_bint(pcre2_code_t *code, uint32_t what):
+    cdef size_t _info_size(pcre2_code_t *code, uint32_t what) except *:
+        """ Safely access pattern info returned as size_t.
+        """
+        cdef size_t where
+        pattern_info_rc = pcre2_pattern_info(code, what, &where)
+        if pattern_info_rc < 0:
+            raise_from_rc(pattern_info_rc, None)
+        return where
+
+    @staticmethod
+    cdef bint _info_bint(pcre2_code_t *code, uint32_t what) except *:
         """ Safely access pattern info returned as bint.
         """
         cdef bint where
@@ -162,7 +172,7 @@ cdef class Pattern:
         """ If the compiled pattern was successfully JIT compiled, return the
         size of the JIT compiled code, otherwise return zero.
         """
-        return Pattern._info_uint(self._code, PCRE2_INFO_JITSIZE)
+        return Pattern._info_size(self._code, PCRE2_INFO_JITSIZE)
 
     
     @property
@@ -185,7 +195,7 @@ cdef class Pattern:
     def size(self):
         """ Returns the size of the compiled pattern in bytes.
         """
-        return Pattern._info_uint(self._code, PCRE2_INFO_SIZE)
+        return Pattern._info_size(self._code, PCRE2_INFO_SIZE)
 
 
     def name_dict(self):

@@ -68,7 +68,7 @@ cdef class Scanner:
         scanner._pattern = pattern
         scanner._subject = subject
 
-        patn_opts = Pattern._info_bint(pattern._code, PCRE2_INFO_ALLOPTIONS)
+        patn_opts = Pattern._info_uint(pattern._code, PCRE2_INFO_ALLOPTIONS)
         scanner._is_patn_utf = (patn_opts & PCRE2_UTF) != 0
         newline = Pattern._info_uint(pattern._code, PCRE2_INFO_NEWLINE)
         scanner._is_crlf_newline = (

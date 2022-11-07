@@ -20,9 +20,11 @@ cdef class Pattern:
     )
 
     @staticmethod
-    cdef uint32_t _info_uint(pcre2_code_t *code, uint32_t what)
+    cdef uint32_t _info_uint(pcre2_code_t *code, uint32_t what) except *
     @staticmethod
-    cdef bint _info_bint(pcre2_code_t *code, uint32_t what)
+    cdef size_t _info_size(pcre2_code_t *code, uint32_t what) except *
+    @staticmethod
+    cdef bint _info_bint(pcre2_code_t *code, uint32_t what) except *
 
     @staticmethod
     cdef pcre2_match_data_t * _match(

@@ -2,4 +2,4 @@ requests
 wheel
 scikit-build
 cmake
-Cython==0.29.32
+Cython

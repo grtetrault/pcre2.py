@@ -218,9 +218,9 @@ cdef class Match:
         if is_subj_utf:
             ofst, obj_ofst = codepoint_to_codeunit(self._subj, obj_ofst, 0, 0)
 
-        cdef res_buf_len = 0
+        cdef size_t res_buf_len = 0
         if not low_memory:
-            res_buf_len = 2 * self._subj.len
+            res_buf_len = self._subj.len + (self._subj.len // 2)
 
         cdef int rc = 0
         res, res_len = Pattern._substitute(
