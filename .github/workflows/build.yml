@@ -7,77 +7,42 @@ on:
     branches: [main]
 
 jobs:
-  # build_sdist:
-  #   name: "build_sdist: ${{ matrix.os }}"
-  #   runs-on: ${{ matrix.os }}
+  build_sdist:
+    name: "build_sdist: ${{ matrix.os }}"
+    runs-on: ${{ matrix.os }}
 
-  #   strategy:
-  #     matrix:
-  #       os: [ubuntu-latest]
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
 
-  #   steps:
-  #     - uses: actions/checkout@v3
+    steps:
+      - uses: actions/checkout@v3
+        with:
+        submodules: recursive
 
-  #     - uses: actions/setup-python@v4
-  #       name: Setup Python 3.9
-  #       with:
-  #         python-version: "3.9"
+      - uses: actions/setup-python@v4
+        name: Setup Python 3.9
+        with:
+          python-version: "3.9"
 
-  #     - name: Init local environment
-  #       run: make init
+      - name: Make sdist
+        run: pipx run build --sdist
+  
+      - name: Install from sdist
+        run: |
+          pip install -r requirements/build-requirements.txt
+          cp dist/pcre2-*.tar.gz pcre2.tar.gz
+          pip install pcre2.tar.gz
 
-  #     - name: Build PCRE2 library
-  #       run: make build_lib
+      - name: Test installed package
+        run: |
+          pip install -r requirements/test-requirements.txt
+          pytest --full-trace
 
-  #     - name: Build source distribution
-  #       run: make build_sdist
-
-  #     - name: Install from source distribution
-  #       run: make install_sdist
-
-  #     - name: Test installed package
-  #       run: pytest --full-trace
-
-  #     - name: Upload artifacts to GitHub
-  #       uses: actions/upload-artifact@v3
-  #       with:
-  #         path: ./dist/*.tar.gz
-
-
-  # build_win_wheels:
-  #   name: "build_win_wheels: CPython ${{ matrix.python-version }}"
-  #   runs-on: windows-latest
-  #   defaults:
-  #     run:
-  #       shell: bash
-
-  #   strategy:
-  #     matrix:
-  #       python-version: [3.9] # ["3.6", "3.7", "3.8", "3.9", "3.10", "3.11"]
-
-  #   steps:
-  #     - uses: actions/checkout@v3
-
-  #     - name: Init local environment
-  #       run: make init
-
-  #     - name: Build PCRE2 library
-  #       run: make build_lib
-  #       shell: msys2 {0}
-
-  #     - name: Build wheel
-  #       run: make build_wheel
-
-  #     - name: Install from wheel
-  #       run: make install_wheel
-
-  #     - name: Test installed package
-  #       run: pytest --full-trace
-
-  #     - name: Upload artifacts to GitHub
-  #       uses: actions/upload-artifact@v3
-  #       with:
-  #         path: ./dist/*.whl
+      - name: Upload artifacts to GitHub
+        uses: actions/upload-artifact@v3
+        with:
+          path: ./dist/*.tar.gz
 
   build_unix_wheels:
     name: "build_unix_wheels: ${{ matrix.name }}"
@@ -88,28 +53,28 @@ jobs:
           - name: Windows AMD64
             os: windows-latest
             build: cp39-win_amd64
-          # - name: macOS x86-64
-          #   os: macos-latest
-          #   build: "cp*-macosx_x86_64"
-          # - name: macOS ARM64
-          #   os: macos-latest
-          #   build: "cp*-macosx_arm64"
-          # - name: Ubuntu x86-64
-          #   os: ubuntu-latest
-          #   build: "cp*-manylinux_x86_64"
-          # - name: Ubuntu x86-64 with MUSL
-          #   os: ubuntu-latest
-          #   build: "cp*-musllinux_x86_64"
-          # - name: Ubuntu Aarch64
-          #   os: ubuntu-latest
-          #   build: "cp*-manylinux_aarch64"
+          - name: macOS x86-64
+            os: macos-latest
+            build: "cp*-macosx_x86_64"
+          - name: macOS ARM64
+            os: macos-latest
+            build: "cp*-macosx_arm64"
+          - name: Ubuntu x86-64
+            os: ubuntu-latest
+            build: "cp*-manylinux_x86_64"
+          - name: Ubuntu x86-64 with MUSL
+            os: ubuntu-latest
+            build: "cp*-musllinux_x86_64"
+          - name: Ubuntu Aarch64
+            os: ubuntu-latest
+            build: "cp*-manylinux_aarch64"
 
     steps:
       - uses: actions/checkout@v3
         with:
             submodules: recursive
 
-      - uses: ilammy/msvc-dev-cmd@v1.10.0
+      - uses: ilammy/msvc-dev-cmd@v1.12.0
         if: runner.os == 'Windows'
 
       - name: Set Windows variables
@@ -118,7 +83,7 @@ jobs:
         run: echo "CC=cl.exe" >> $GITHUB_ENV
 
       - name: Build wheels with CIBuildWheel
-        uses: pypa/cibuildwheel@v2.4.0
+        uses: pypa/cibuildwheel@v2.11.2
         env:
           CIBW_TEST_REQUIRES: pytest
           CIBW_TEST_COMMAND: pytest {project}/tests
