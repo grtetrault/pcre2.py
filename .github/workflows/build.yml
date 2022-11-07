@@ -37,7 +37,7 @@ jobs:
       - name: Test installed package
         run: |
           pip install -r requirements/test-requirements.txt
-          pytest --full-trace tests
+          pytest
 
       - name: Upload artifacts to GitHub
         uses: actions/upload-artifact@v3

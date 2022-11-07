@@ -1,6 +1,14 @@
+graft requirements
+
+include CHANGELOG.md
+include CMakeLists.txt
 include LICENSE
+include Makefile
+include pyproject.toml
 include README.md
-include libpcre2.cfg
-recursive-include src/libpcre2 *
-include src/pcre2/*.py src/pcre2/*.pyx src/pcre2/*.pxd
-exclude src/pcre2/*.c src/pcre2/*.html
+include setup.py
+
+graft src/pcre2/
+graft src/libpcre2/
+
+exclude MANIFEST.in
