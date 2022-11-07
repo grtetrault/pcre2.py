@@ -48,7 +48,7 @@ jobs:
         include:
           - name: Windows AMD64
             os: windows-latest
-            build: cp39-win_amd64
+            build: cp*-win_amd64
           - name: macOS x86-64
             os: macos-latest
             build: "cp*-macosx_x86_64"
