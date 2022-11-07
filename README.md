@@ -1,7 +1,5 @@
 # PCRE2.py: Python bindings for the PCRE2 regular expression library
 
-:construction: **This project is currently under active development and still in planning stages.**  :construction:
-
 This project contains Python bindings for [PCRE2](https://github.com/PCRE2Project/pcre2).
 PCRE2 is the revised API for the Perl-compatible regular expressions (PCRE) library created by Philip Hazel.
 For source code, see the [official PCRE2 repository](https://github.com/PCRE2Project/pcre2).

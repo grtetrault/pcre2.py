@@ -8,6 +8,9 @@ from .utils cimport *
 from .libpcre2 cimport *
 
 
+__libpcre2_version__ = f"{PCRE2_MAJOR}.{PCRE2_MINOR}"
+
+
 class MetaOption(IntEnum):
     def __repr__(self):
         return f"<{self.__class__.__name__}.{self._name_}: 0x{self._value_:x}>"
