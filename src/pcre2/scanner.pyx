@@ -140,7 +140,7 @@ cdef class Scanner:
             return self.__next__()
 
         # Handle all other errors.
-        elif mtch == NULL or match_rc < 0:
+        elif mtch is NULL or match_rc < 0:
             raise_from_rc(match_rc, None)
 
         # If the match was successful.
