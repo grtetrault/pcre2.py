@@ -2,7 +2,7 @@
 
 This project contains Python bindings for [PCRE2](https://github.com/PCRE2Project/pcre2).
 PCRE2 is the revised API for the Perl-compatible regular expressions (PCRE) library created by Philip Hazel.
-For source code, see the [official PCRE2 repository](https://github.com/PCRE2Project/pcre2).
+For original source code, see the [official PCRE2 repository](https://github.com/PCRE2Project/pcre2).
 
 ## Installation
 
@@ -11,9 +11,10 @@ From PyPI:
 pip install pcre2
 ```
 
-If a wheel is not available for your platform, the source for PCRE2 is downloaded over HTTP from [PCRE2 releases](https://github.com/PCRE2Project/pcre2/releases/) and built. Building requires:
+If a wheel is not available for your platform, the module will be built from source.
+Building requires:
 
-* `autoconf`
+* `cmake`
 * C compiler toolchain, such as `gcc` and `make`
 * `libtool`
 * Python headers
@@ -28,7 +29,8 @@ Expressions can be compiled with a number of options (combined with the bitwise-
 >>> import pcre2
 >>> expr = r'(?<head>\w+)\s+(?<tail>\w+)'
 >>> patn = pcre2.compile(expr, options=pcre2.I, jit=True)
->>> patn.jit_compile()  # Patterns can also be JIT compiled after initialization.
+>>> # Patterns can also be JIT compiled after initialization.
+>>> patn.jit_compile()
 ```
 
 Inspection of `Pattern` objects is done as follows,
@@ -40,6 +42,9 @@ Inspection of `Pattern` objects is done as follows,
 {1: 'head', 2: 'tail'}
 >>> patn.options
 524296
+>>> # Deeper inspection into options is available.
+>>> pcre2.CompileOption.decompose(patn.options)
+[<CompileOption.CASELESS: 0x8>, <CompileOption.UTF: 0x80000>]
 ```
 
 Once compiled, `Pattern` objects can be used to match against strings.
@@ -66,7 +71,7 @@ Substitution is also supported, both from `Pattern` and `Match` objects,
 'bar foo buzz bazz'
 ```
 
-Additionally, `Pattern` objects support for scanning over subjects for all non-overlapping matches,
+Additionally, `Pattern` objects support scanning over subjects for all non-overlapping matches,
 
 ```python
 >>> for match in patn.scan(subj):
