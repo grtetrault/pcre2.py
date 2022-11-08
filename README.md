@@ -20,8 +20,6 @@ If a wheel is not available for your platform, the source for PCRE2 is downloade
 
 ## Usage
 
-PCRE2.py provides two primary objects, `Pattern` 
-
 Regular expressions are compiled with `pcre2.compile()` which accepts both unicode strings and bytes-like objects.
 This returns a `Pattern` object.
 Expressions can be compiled with a number of options (combined with the bitwise-or operator) and can be JIT compiled,
