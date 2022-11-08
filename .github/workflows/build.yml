@@ -40,72 +40,72 @@ jobs:
         with:
           path: ./dist/*.tar.gz
 
-  build_wheels:
-    name: "build_wheels: ${{ matrix.name }}"
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        include:
-          - name: Windows AMD64
-            os: windows-latest
-            build: cp*-win_amd64
-          - name: macOS x86-64
-            os: macos-latest
-            build: "cp*-macosx_x86_64"
-          - name: macOS ARM64
-            os: macos-latest
-            build: "cp*-macosx_arm64"
-          - name: Ubuntu x86-64
-            os: ubuntu-latest
-            build: "cp*-manylinux_x86_64"
-          - name: Ubuntu x86-64 with MUSL
-            os: ubuntu-latest
-            build: "cp*-musllinux_x86_64"
-          - name: Ubuntu Aarch64
-            os: ubuntu-latest
-            build: "cp*-manylinux_aarch64"
+  # build_wheels:
+  #   name: "build_wheels: ${{ matrix.name }}"
+  #   runs-on: ${{ matrix.os }}
+  #   strategy:
+  #     matrix:
+  #       include:
+  #         - name: Windows AMD64
+  #           os: windows-latest
+  #           build: cp*-win_amd64
+  #         - name: macOS x86-64
+  #           os: macos-latest
+  #           build: "cp*-macosx_x86_64"
+  #         - name: macOS ARM64
+  #           os: macos-latest
+  #           build: "cp*-macosx_arm64"
+  #         - name: Ubuntu x86-64
+  #           os: ubuntu-latest
+  #           build: "cp*-manylinux_x86_64"
+  #         - name: Ubuntu x86-64 with MUSL
+  #           os: ubuntu-latest
+  #           build: "cp*-musllinux_x86_64"
+  #         - name: Ubuntu Aarch64
+  #           os: ubuntu-latest
+  #           build: "cp*-manylinux_aarch64"
 
-    steps:
-      - uses: actions/checkout@v3
-        with:
-            submodules: recursive
+  #   steps:
+  #     - uses: actions/checkout@v3
+  #       with:
+  #           submodules: recursive
 
-      - uses: ilammy/msvc-dev-cmd@v1.12.0
-        if: runner.os == 'Windows'
+  #     - uses: ilammy/msvc-dev-cmd@v1.12.0
+  #       if: runner.os == 'Windows'
 
-      - name: Set Windows variables
-        if: runner.os == 'Windows'
-        shell: bash
-        run: echo "CC=cl.exe" >> $GITHUB_ENV
+  #     - name: Set Windows variables
+  #       if: runner.os == 'Windows'
+  #       shell: bash
+  #       run: echo "CC=cl.exe" >> $GITHUB_ENV
 
-      - name: Set up QEMU
-        if: runner.os == 'Linux'
-        uses: docker/setup-qemu-action@v1.2.0
-        with:
-          platforms: aarch64
+  #     - name: Set up QEMU
+  #       if: runner.os == 'Linux'
+  #       uses: docker/setup-qemu-action@v1.2.0
+  #       with:
+  #         platforms: aarch64
 
-      - name: Build wheels with CIBuildWheel
-        uses: pypa/cibuildwheel@v2.11.2
-        env:
-          CIBW_TEST_REQUIRES: pytest
-          CIBW_TEST_COMMAND: pytest {project}/tests
-          CIBW_ARCHS_LINUX: auto aarch64
-          CIBW_ARCHS_MACOS: x86_64 arm64
-          CIBW_BUILD: ${{ matrix.build }}
-          CIBW_SKIP: ${{ matrix.skip }}
+  #     - name: Build wheels with CIBuildWheel
+  #       uses: pypa/cibuildwheel@v2.11.2
+  #       env:
+  #         CIBW_TEST_REQUIRES: pytest
+  #         CIBW_TEST_COMMAND: pytest {project}/tests
+  #         CIBW_ARCHS_LINUX: auto aarch64
+  #         CIBW_ARCHS_MACOS: x86_64 arm64
+  #         CIBW_BUILD: ${{ matrix.build }}
+  #         CIBW_SKIP: ${{ matrix.skip }}
 
-      - name: Check with Twine
-        run: pipx run twine check wheelhouse/*
+  #     - name: Check with Twine
+  #       run: pipx run twine check wheelhouse/*
 
-      - name: Upload artifacts to GitHub
-        uses: actions/upload-artifact@v3
-        with:
-          path: ./wheelhouse/*.whl
+  #     - name: Upload artifacts to GitHub
+  #       uses: actions/upload-artifact@v3
+  #       with:
+  #         path: ./wheelhouse/*.whl
 
   upload_pypi:
-    needs: [build_sdist, build_wheels]
+    needs: [build_sdist] #, build_wheels]
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/')
+    if: github.event_name == 'push' && contains(github.event.ref, 'refs/tags/')
 
     steps:
       - uses: actions/download-artifact@v3
