@@ -22,7 +22,6 @@ skbuild.setup(
     long_description_content_type = "text/markdown",
     license = "BSD 3-Clause License",
     author = "Garrett Tetrault",
-    author_email = "Garrett Tetrault <grtetrault [at] pm [dot] me>",
     url = "https://github.com/grtetrault/pcre2.py",
     classifiers = [
         "Development Status :: 3 - Alpha",
