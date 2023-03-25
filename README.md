@@ -83,7 +83,7 @@ buzz
 
 ## Performance
 
-PCRE2 provides aa fast regular expression library, particularly with JIT compilation enabled.
+PCRE2 provides a fast regular expression library, particularly with JIT compilation enabled.
 Below are the `regex-redux` benchmark results included in this repository,
 
 | Script              | Number of runs | Total time | Real time  | User time   | System time   |
