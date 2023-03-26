@@ -88,10 +88,20 @@ Below are the `regex-redux` benchmark results included in this repository,
 
 | Script              | Number of runs | Total time | Real time  | User time   | System time   |
 | ------------------- | -------------- | ---------- | ---------- | ----------- | ------------- |
-| `vanilla.py `       |             10 |     51.470 |      5.147 |      11.409 |         0.533 |
-| `hand_optimized.py` |             10 |     12.310 |      1.231 |       2.484 |         0.212 |
-| `pcre2_module.py`   |             10 |     14.040 |      1.404 |       2.309 |         0.548 |
+| `baseline.py`       |             10 |      2.990 |      0.299 |       0.020 |         0.087 |
+| `vanilla.py`        |             10 |     51.910 |      5.191 |      11.409 |         0.553 |
+| `hand_optimized.py` |             10 |     11.600 |      1.160 |       2.418 |         0.204 |
+| `pcre2_module.py`   |             10 |     13.880 |      1.388 |       2.282 |         0.551 |
  
+Script descriptions are as follows,
+
+| Script              | Description                                            |
+| ------------------- | ------------------------------------------------------ |
+| `baseline.py`       | Reads input file and outputs stored expected output    |
+| `vanilla.py`        | Pure Python version                                    |
+| `hand_optimized.py` | Python with `ctypes` bindings for shared PCRE2 library |
+| `pcre2_module.py`   | Implementation using Python bindings written here      |
+
 Tests were performed on an M2 Macbook Air.
 For more information on this benchmark, see [The Computer Language Benchmarks Game](https://benchmarksgame-team.pages.debian.net/benchmarksgame/performance/regexredux.html).
 See source code of benchmark scripts for details and original sources.
