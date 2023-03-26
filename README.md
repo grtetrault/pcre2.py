@@ -103,5 +103,6 @@ Script descriptions are as follows,
 | `pcre2_module.py`   | Implementation using Python bindings written here      |
 
 Tests were performed on an M2 Macbook Air.
+Note that to run benchmarks locally, [Git LFS](https://git-lfs.com/) must be installed to download the input dataset.
 For more information on this benchmark, see [The Computer Language Benchmarks Game](https://benchmarksgame-team.pages.debian.net/benchmarksgame/performance/regexredux.html).
 See source code of benchmark scripts for details and original sources.
