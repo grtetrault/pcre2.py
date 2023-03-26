@@ -95,12 +95,12 @@ Below are the `regex-redux` benchmark results included in this repository,
  
 Script descriptions are as follows,
 
-| Script              | Description                                            |
-| ------------------- | ------------------------------------------------------ |
-| `baseline.py`       | Reads input file and outputs stored expected output    |
-| `vanilla.py`        | Pure Python version                                    |
-| `hand_optimized.py` | Python with `ctypes` bindings for shared PCRE2 library |
-| `pcre2_module.py`   | Implementation using Python bindings written here      |
+| Script              | Description                                                        |
+| ------------------- | ------------------------------------------------------------------ |
+| `baseline.py`       | Reads input file and outputs stored expected output                |
+| `vanilla.py`        | Pure Python version                                                |
+| `hand_optimized.py` | Manually written Python `ctypes` bindings for shared PCRE2 library |
+| `pcre2_module.py`   | Implementation using Python bindings written here                  |
 
 Tests were performed on an M2 Macbook Air.
 Note that to run benchmarks locally, [Git LFS](https://git-lfs.com/) must be installed to download the input dataset.
