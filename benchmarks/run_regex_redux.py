@@ -11,12 +11,12 @@ PROJ_CWD = pathlib.Path(__file__).parents[1]
 PYTHON = PROJ_CWD.joinpath(".venv/bin/python3")
 INPUT_DATA = PROJ_CWD.joinpath("benchmarks/regex_redux/input.txt")
 SCRIPTS = [
-    # PROJ_CWD.joinpath("benchmarks/regex_redux/baseline.py"),
-    # PROJ_CWD.joinpath("benchmarks/regex_redux/vanilla.py"),
+    PROJ_CWD.joinpath("benchmarks/regex_redux/baseline.py"),
+    PROJ_CWD.joinpath("benchmarks/regex_redux/vanilla.py"),
     PROJ_CWD.joinpath("benchmarks/regex_redux/hand_optimized.py"),
     PROJ_CWD.joinpath("benchmarks/regex_redux/pcre2_module.py"),
 ]
-NUM_RUNS = 1
+NUM_RUNS = 10
 
 EXPECTED_OUTPUT = """\
 agggtaaa|tttaccct 356
