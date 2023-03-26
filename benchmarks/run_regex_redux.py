@@ -6,17 +6,17 @@ import subprocess
 
 
 PROJ_CWD = pathlib.Path(__file__).parents[1]
-LIBPCRE2_CONFIG = PROJ_CWD.joinpath("libpcre2.cfg")
 
 # Note that commands are relative to the project directory.
 PYTHON = PROJ_CWD.joinpath(".venv/bin/python3")
 INPUT_DATA = PROJ_CWD.joinpath("benchmarks/regex_redux/input.txt")
 SCRIPTS = [
-   PROJ_CWD.joinpath("benchmarks/regex_redux/vanilla.py"),
-   PROJ_CWD.joinpath("benchmarks/regex_redux/hand_optimized.py"),
-   PROJ_CWD.joinpath("benchmarks/regex_redux/pcre2_module.py"),
+    # PROJ_CWD.joinpath("benchmarks/regex_redux/baseline.py"),
+    # PROJ_CWD.joinpath("benchmarks/regex_redux/vanilla.py"),
+    PROJ_CWD.joinpath("benchmarks/regex_redux/hand_optimized.py"),
+    PROJ_CWD.joinpath("benchmarks/regex_redux/pcre2_module.py"),
 ]
-NUM_RUNS = 10
+NUM_RUNS = 1
 
 EXPECTED_OUTPUT = """\
 agggtaaa|tttaccct 356
@@ -56,7 +56,16 @@ if __name__ == "__main__":
         for _ in range(NUM_RUNS):
             print(".", end="", flush=True)
             out = subprocess.run(cmd, input=data, capture_output=True, cwd=PROJ_CWD)
-            assert out.stdout == EXPECTED_OUTPUT
+            
+            try:
+                assert out.stdout == EXPECTED_OUTPUT
+            except AssertionError as e:
+                print(f"\nUnexpected output on script {script}")
+                print("==========\nReceived:")
+                print(out.stdout.decode())
+                print("==========\nExpected:")
+                print(EXPECTED_OUTPUT.decode())
+                raise e
 
             time_match = pcre2.match(
                 r"({0})\sreal\s*({0})\suser\s*({0})\ssys".format(r"[0-9]+\.[0-9]+").encode(),

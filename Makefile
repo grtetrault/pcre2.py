@@ -7,7 +7,7 @@ init:
 	./.venv/bin/pip install -r ./requirements/test-requirements.txt
 	./.venv/bin/pip install .
 
-rebuild:
+build:
 	./.venv/bin/pip install . --force-reinstall
 
 clean:

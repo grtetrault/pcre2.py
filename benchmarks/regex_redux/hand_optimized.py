@@ -14,10 +14,17 @@
 # better program.
 
 import pathlib
-import configparser
-from ctypes import c_char, c_char_p, c_int, c_size_t, c_uint32, \
-                   byref, CDLL, create_string_buffer, POINTER
-from ctypes.util import find_library
+from ctypes import (
+    c_char,
+    c_char_p,
+    c_int,
+    c_size_t,
+    c_uint32,
+    byref,
+    CDLL,
+    create_string_buffer,
+    POINTER,
+)
 from multiprocessing import Pipe, Process
 from multiprocessing.connection import wait
 from multiprocessing.sharedctypes import RawArray
@@ -29,11 +36,9 @@ from sys import stdin
 # Python's built in regular expression engine because it is significantly
 # faster.
 PROJ_CWD = pathlib.Path(__file__).parents[2]
-LIBPCRE2_CONFIG = PROJ_CWD.joinpath("libpcre2.cfg")
-config = configparser.ConfigParser()
-config.read(LIBPCRE2_CONFIG.resolve())
-PCRE2_CWD = config["DEFAULT"]["CWD"]
-PCRE2=CDLL(PROJ_CWD.joinpath(f"{PCRE2_CWD}/.libs/libpcre2-8.dylib"))
+LIBPCRE2_DYLIB = next(PROJ_CWD.glob("_skbuild/*/cmake-install/lib/libpcre2-8.dylib"))
+PCRE2 = CDLL(LIBPCRE2_DYLIB.absolute())
+
 
 # By default, Python assumes that C functions will return int's but that is not
 # correct for the following functions which return pointers instead so we tell

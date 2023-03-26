@@ -63,7 +63,7 @@ def main():
     result = mp.Manager().Value(str, "")
     process = mp.Process(target=seq_subs, args=(data, subs, result))
     process.start()
-    
+
     # Run match counts in parallel with substitutions.
     pool = mp.Pool(initializer=init_pool, initargs=(data,))
     for patn, n in pool.imap(n_matches, patns, chunksize=3):
@@ -80,6 +80,5 @@ def main():
     print(len(data))
 
 
-if __name__=="__main__":
+if __name__ == "__main__":
     main()
-    

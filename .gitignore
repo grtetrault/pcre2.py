@@ -8,6 +8,8 @@ _skbuild
 build
 dist
 pcre2.egg-info/
+CMakeFiles
+CMakeTmp
 
 src/pcre2/**/*.c
 src/pcre2/**/*.html
