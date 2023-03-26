@@ -174,6 +174,12 @@ cdef class Pattern:
         """
         return Pattern._info_size(self._code, PCRE2_INFO_JITSIZE)
 
+    @property
+    def min_length(self):
+        """ Returns the minimum number of characters of matching subject strings.
+        """
+        return Pattern._info_uint(self._code, PCRE2_INFO_MINLENGTH)
+
     
     @property
     def name_count(self):

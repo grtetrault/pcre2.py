@@ -31,7 +31,7 @@ class LibraryError(Exception):
 
         msg = errormsg_buf.decode("utf-8").capitalize()
         if context_msg:
-            msg = msg + ". " + context_msg
+            msg = context_msg + ". " + msg
 
         super().__init__(msg)
         self.errorcode = errorcode

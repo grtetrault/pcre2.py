@@ -1,11 +1,14 @@
 # -*- coding:utf-8 -*-
 
+import git
 import pcre2
 import pathlib
 import subprocess
 
 
-PROJ_CWD = pathlib.Path(__file__).parents[1]
+REPO = git.Repo(".", search_parent_directories=True)
+PROJ_CWD = pathlib.Path(REPO.working_tree_dir)
+
 
 # Note that commands are relative to the project directory.
 PYTHON = PROJ_CWD.joinpath(".venv/bin/python3")

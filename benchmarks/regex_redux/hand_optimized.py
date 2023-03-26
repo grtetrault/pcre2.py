@@ -13,6 +13,7 @@
 # optimal Python program. Please contribute a better program if you can make a
 # better program.
 
+import git
 import pathlib
 from ctypes import (
     c_char,
@@ -35,7 +36,8 @@ from sys import stdin
 # We'll be using PCRE2 for our regular expression needs instead of using
 # Python's built in regular expression engine because it is significantly
 # faster.
-PROJ_CWD = pathlib.Path(__file__).parents[2]
+REPO = git.Repo(".", search_parent_directories=True)
+PROJ_CWD = pathlib.Path(REPO.working_tree_dir)
 LIBPCRE2_DYLIB = next(PROJ_CWD.glob("_skbuild/*/cmake-install/lib/libpcre2-8.dylib"))
 PCRE2 = CDLL(LIBPCRE2_DYLIB.absolute())
 
