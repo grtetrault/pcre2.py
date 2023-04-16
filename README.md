@@ -88,21 +88,23 @@ Below are the `regex-redux` benchmark results included in this repository,
 
 | Script              | Number of runs | Total time | Real time  | User time   | System time   |
 | ------------------- | -------------- | ---------- | ---------- | ----------- | ------------- |
-| `baseline.py`       |             10 |      2.990 |      0.299 |       0.020 |         0.087 |
-| `vanilla.py`        |             10 |     51.910 |      5.191 |      11.409 |         0.553 |
-| `hand_optimized.py` |             10 |     11.600 |      1.160 |       2.418 |         0.204 |
-| `pcre2_module.py`   |             10 |     13.880 |      1.388 |       2.282 |         0.551 |
+| `baseline.py`       |             10 |      3.020 |      0.302 |       0.020 |         0.086 |
+| `vanilla.py`        |             10 |     51.380 |      5.138 |      11.408 |         0.529 |
+| `hand_optimized.py` |             10 |     13.190 |      1.319 |       2.846 |         0.344 |
+| `pcre2_module.py`   |             10 |     13.670 |      1.367 |       2.269 |         0.532 |
  
 Script descriptions are as follows,
 
-| Script              | Description                                                        |
-| ------------------- | ------------------------------------------------------------------ |
-| `baseline.py`       | Reads input file and outputs stored expected output                |
-| `vanilla.py`        | Pure Python version                                                |
-| `hand_optimized.py` | Manually written Python `ctypes` bindings for shared PCRE2 library |
-| `pcre2_module.py`   | Implementation using Python bindings written here                  |
+| Script              | Description                                                          |
+| ------------------- | -------------------------------------------------------------------- |
+| `baseline.py`       | Reads input file and outputs stored expected output                  |
+| `vanilla.py`        | Pure Python version                                                  |
+| `hand_optimized.py` | Manually written Python `ctypes` bindings for shared PCRE2 C library |
+| `pcre2_module.py`   | Implementation using Python bindings written here                    |
 
 Tests were performed on an M2 Macbook Air.
 Note that to run benchmarks locally, [Git LFS](https://git-lfs.com/) must be installed to download the input dataset.
+Additionally, a Python virtual environment must be created, and the package built
+with `make init` and `make build` respectively.
 For more information on this benchmark, see [The Computer Language Benchmarks Game](https://benchmarksgame-team.pages.debian.net/benchmarksgame/performance/regexredux.html).
 See source code of benchmark scripts for details and original sources.
