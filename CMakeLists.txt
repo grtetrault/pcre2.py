@@ -16,13 +16,13 @@ set(PCRE2_NEVER_BACKSLASH_C ON CACHE BOOL "" FORCE)
 set(CMAKE_BUILD_TYPE Release)
 
 # Build PCRE2 library as both shared and static.
-set(BUILD_STATIC_LIBS ON CACHE BOOL "" FORCE)
-set(BUILD_SHARED_LIBS ON CACHE BOOL "" FORCE)
+set(BUILD_STATIC_LIBS ON)
+set(BUILD_SHARED_LIBS ON)
 add_subdirectory(src/libpcre2)
 
 # Build Cython code as shared.
-set(BUILD_STATIC_LIBS OFF CACHE BOOL "" FORCE)
-set(BUILD_SHARED_LIBS ON CACHE BOOL "" FORCE)
+set(BUILD_STATIC_LIBS OFF)
+set(BUILD_SHARED_LIBS ON)
 add_subdirectory(src/pcre2)
 
 # Include PCRE2 header for Cython API.
