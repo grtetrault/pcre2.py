@@ -273,6 +273,31 @@ cdef class Pattern:
         return mtch
 
 
+    def findall(self, subject, offset=0):
+        """
+        Return all non-overlapping matches of our pattern in subject, as a list of strings or tuples.
+
+        The string is scanned left-to-right, and matches are returned in the
+        order found. Empty matches are included in the result.
+
+        The result depends on the number of capturing groups in the pattern.
+        If there are no groups, return a list of strings matching the whole
+        pattern. If there is exactly one group, return a list of strings
+        matching that group. If multiple groups are present, return a list of
+        tuples of strings matching the groups. Non-capturing groups do not
+        affect the form of the result.
+        """
+        matches = self.scan(subject, offset=offset)
+        if self.capture_count == 0:
+            return [m.substring() for m in matches]
+        elif self.capture_count == 1:
+            return [m.substring(1) for m in matches]
+        result = []
+        for m in matches:
+            result.append(tuple(m.substring(g) for g in range(self.capture_count)))
+        return result
+
+
     def match(self, subject, offset=0, options=0):
         """ If match exists, returns the corresponding Match object. Otherwise
         a MatchError is thrown in the case of no matches. See the following
@@ -315,6 +340,41 @@ cdef class Pattern:
             raise ValueError(f"Cannot use a {patn_type} pattern with a {subj_type} subject")
 
         return Scanner._from_data(self, subject, offset)
+
+
+    def split(self, subject, maxsplit=0, offset=0):
+        """
+        Split subject by occurances of our pattern.
+
+        If capturing parentheses are used in pattern, then the text of all
+        groups in the pattern are also returned as part of the resulting list.
+        If maxsplit is nonzero, at most maxsplit splits occur, and the
+        remainder of the string is returned as the final element of the list.
+
+        If there are capturing groups in the separator and it matches at the
+        start of the string, the result will start with an empty string. The
+        same holds for the end of the string.
+
+        That way, separator components are always found at the same relative
+        indices within the result list.
+
+        Empty matches for the pattern split the string only when not adjacent
+        to a previous empty match.
+        """
+        output = []
+        pos = n = 0
+        for match in self.scan(subject, offset=offset):
+            start = match.start()
+            end = match.end()
+            if start != end:
+                output.append(subject[pos:start])
+                output.extend(match.groups())
+                pos = end
+                n += 1
+                if 0 < maxsplit <= n:
+                    break
+        output.append(subject[pos:])
+        return output
 
 
     @staticmethod

@@ -238,3 +238,7 @@ cdef class Match:
         free(res)
         PyBuffer_Release(repl)
         return result
+
+    def groups(self):
+        """Return a tuple containing all the subgroups of the match, from 1 up to however many groups are in the pattern."""
+        return tuple(self.substring(g) for g in range(self.pattern.capture_count))
