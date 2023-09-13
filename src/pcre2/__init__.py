@@ -1,4 +1,4 @@
-from .methods import compile, match, scan, substitute
+from .methods import compile, findall, match, scan, split, substitute
 from .consts import (
     __libpcre2_version__,
     CompileOption, MatchOption, SubstituteOption, ExpandOption,

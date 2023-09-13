@@ -45,6 +45,13 @@ def compile(pattern, options=0, jit=False):
     return pattern_obj
 
 
+def findall(pattern, subject, offset=0):
+    """ Shorthand for compiling a pattern, then calling findall. Note that this
+    will use JIT compilation.
+    """
+    return compile(pattern, jit=True).findall(subject, offset=offset)
+
+
 def match(pattern, subject, offset=0, options=0):
     """ Shorthand for compiling a pattern, then calling match.
     """
@@ -56,6 +63,13 @@ def scan(pattern, subject, offset=0):
     will use JIT compilation.
     """
     return compile(pattern, jit=True).scan(subject, offset=offset)
+
+
+def split(pattern, subject, maxsplit=0, offset=0):
+    """ Shorthand for compiling a pattern, then calling split. Note that this
+    will use JIT compilation.
+    """
+    return compile(pattern, jit=True).split(subject, maxsplit=maxsplit, offset=offset)
 
 
 def substitute(pattern, replacement, subject, offset=0, options=0, low_memory=False):
