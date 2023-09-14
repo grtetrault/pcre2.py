@@ -4,4 +4,4 @@ from .consts import (
     CompileOption, MatchOption, SubstituteOption, ExpandOption,
     A, I, G, M, NE, NS, U, S, X
 )
-__version__ = "0.2.0"
+__version__ = "0.3.0"
