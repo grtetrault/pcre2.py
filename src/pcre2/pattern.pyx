@@ -339,7 +339,8 @@ cdef class Pattern:
             subj_type = "string" if is_subj_utf else "bytes-like"
             raise ValueError(f"Cannot use a {patn_type} pattern with a {subj_type} subject")
 
-        return Scanner._from_data(self, subject, offset)
+        subj = get_buffer(subject)
+        return Scanner._from_data(self, subj, offset)
 
 
     def split(self, subject, maxsplit=0, offset=0):

@@ -20,7 +20,7 @@ cdef class Scanner:
     """ Iterator object that scans a subject all non-overlapping matches of a
     pattern. Attributes defined in scanner.pxd, see below for an overview:
         _pattern: Pattern object to use for matching
-        _subject: Subject to scan
+        _subj: Subject to scan
         _is_crlf_newline: Whether the character sequence CRLF denotes a newline
         _is_patn_utf: Whether the pattern was compiled with UTF support
         _state_opts: Options to pass to match
@@ -35,7 +35,7 @@ cdef class Scanner:
 
     def __cinit__(self):
         self._pattern = None
-        self._subject = None
+        self._subj = NULL
 
         self._is_patn_utf = False
         self._is_crlf_newline = False
@@ -54,11 +54,12 @@ cdef class Scanner:
 
 
     def __dealloc__(self):
-        pass
+        if self._subj is not NULL:
+            free_buffer(self._subj)
 
 
     @staticmethod
-    cdef Scanner _from_data(Pattern pattern, object subject, size_t offset):
+    cdef Scanner _from_data(Pattern pattern, Py_buffer *subj, size_t offset):
         """ Factory function to create Scanner objects from C-type fields. The
         ownership of the given pointers are stolen, which causes the extension
         type to free them when the object is deallocated.
@@ -66,7 +67,7 @@ cdef class Scanner:
         # Fast call to __new__() that bypasses the __init__() constructor.
         cdef Scanner scanner = Scanner.__new__(Scanner)
         scanner._pattern = pattern
-        scanner._subject = subject
+        scanner._subj = subj
 
         patn_opts = Pattern._info_uint(pattern._code, PCRE2_INFO_ALLOPTIONS)
         scanner._is_patn_utf = (patn_opts & PCRE2_UTF) != 0
@@ -80,11 +81,9 @@ cdef class Scanner:
 
         # Compute and set byte equivalent offset.
         if scanner._is_patn_utf:
-            subj = get_buffer(scanner._subject)
-            ofst, obj_ofst = codepoint_to_codeunit(subj, offset, 0, 0)
+            ofst, obj_ofst = codepoint_to_codeunit(scanner._subj, offset, 0, 0)
             scanner._state_ofst = ofst
             scanner._state_obj_ofst = obj_ofst
-            free_buffer(subj)
         else:
             scanner._state_obj_ofst = offset
             scanner._state_ofst = scanner._state_obj_ofst
@@ -102,14 +101,13 @@ cdef class Scanner:
     def __next__(self):
         """ Yields next match object found in subject.
         """
-        if self._state_obj_ofst > <size_t>len(self._subject):
+        if self._state_obj_ofst > self._subj.len:
             raise StopIteration
 
         # Attempt match of pattern onto subject.
         match_rc = <int>0
-        subj = get_buffer(self._subject)
         mtch = Pattern._match(
-            self._pattern._code, subj, self._state_ofst, self._state_opts, &match_rc
+            self._pattern._code, self._subj, self._state_ofst, self._state_opts, &match_rc
         )
 
         # Handle no matches in result.
@@ -117,7 +115,7 @@ cdef class Scanner:
             # Default match is not achored so if no match found at current offset, then there
             # will not be any ahead either.
             if self._state_opts == 0:
-                free_buffer(subj)
+                pcre2_match_data_free(mtch)
                 raise StopIteration
 
             # Reset options so empty strings can match at next offset.
@@ -125,23 +123,28 @@ cdef class Scanner:
 
             # Increment to next character and handle possible CRLF newlines.
             obj_ofst_increment = 1
-            if self._is_crlf_newline and (self._state_ofst + 1) < <size_t>subj.len:
-                if (<bytes>subj.buf)[self._state_ofst:self._state_ofst + 2] == b"\r\n": # and subj.buf[self._state_ofst + 1] == b"\n":
+            if self._is_crlf_newline and (self._state_ofst + 1) < self._subj.len:
+                if (<bytes>self._subj.buf)[self._state_ofst:self._state_ofst + 2] == b"\r\n":
                     obj_ofst_increment += 1
 
             # Convert indices accordingly.
             if self._is_patn_utf:
                 self._state_ofst, self._state_obj_ofst = codepoint_to_codeunit(
-                    subj, self._state_obj_ofst + obj_ofst_increment,
-                    self._state_ofst, self._state_obj_ofst
+                    self._subj,
+                    self._state_obj_ofst + obj_ofst_increment,
+                    self._state_ofst,
+                    self._state_obj_ofst
                 )
             else:
                 self._state_obj_ofst = self._state_obj_ofst + obj_ofst_increment
                 self._state_ofst = self._state_obj_ofst
+
+            pcre2_match_data_free(mtch)
             return self.__next__()
 
         # Handle all other errors.
         elif mtch is NULL or match_rc < 0:
+            pcre2_match_data_free(mtch)
             raise_from_rc(match_rc, None)
 
         # If the match was successful.
@@ -157,11 +160,16 @@ cdef class Scanner:
                 self._state_opts = 0
                 if self._is_patn_utf:
                     self._state_ofst, self._state_obj_ofst = codeunit_to_codepoint(
-                        subj, mtch_end,
-                        self._state_ofst, self._state_obj_ofst
+                        self._subj, mtch_end, self._state_ofst, self._state_obj_ofst
                     )
                 else:
                     self._state_obj_ofst = mtch_end
                     self._state_ofst = self._state_obj_ofst
 
-            return Match._from_data(mtch, self._pattern, subj, self._state_ofst,self._state_opts)
+            # Create new buffer for match object to own
+            subj_copy = get_buffer(self._subj.obj)
+            return Match._from_data(
+                mtch, self._pattern, subj_copy, self._state_ofst, self._state_opts
+            )
+        
+        pcre2_match_data_free(mtch)
