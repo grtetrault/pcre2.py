@@ -84,6 +84,7 @@ cdef class Scanner:
             ofst, obj_ofst = codepoint_to_codeunit(subj, offset, 0, 0)
             scanner._state_ofst = ofst
             scanner._state_obj_ofst = obj_ofst
+            free_buffer(subj)
         else:
             scanner._state_obj_ofst = offset
             scanner._state_ofst = scanner._state_obj_ofst
@@ -116,7 +117,7 @@ cdef class Scanner:
             # Default match is not achored so if no match found at current offset, then there
             # will not be any ahead either.
             if self._state_opts == 0:
-                PyBuffer_Release(subj)
+                free_buffer(subj)
                 raise StopIteration
 
             # Reset options so empty strings can match at next offset.

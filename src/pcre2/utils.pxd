@@ -4,6 +4,8 @@
 from cpython cimport Py_buffer
 
 
+cdef int free_buffer(Py_buffer *pybuf)
+
 cdef Py_buffer * get_buffer(object obj) except NULL
 
 cdef (size_t, size_t) codeunit_to_codepoint(

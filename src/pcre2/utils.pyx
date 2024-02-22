@@ -27,6 +27,15 @@ from .libpcre2 cimport *
 from .exceptions import LibraryError, CompileError, MatchError
 
 
+cdef int free_buffer(Py_buffer *pybuf):
+    """ Safe free a buffer pointer, ensuring it first releases it's reference
+    """
+    if pybuf is not NULL:
+        PyBuffer_Release(pybuf)
+        free(pybuf)
+    return 0
+
+
 cdef Py_buffer * get_buffer(object obj) except NULL:
     """ Get a Python buffer from an object, encoding via UTF-8 if unicode
     based
@@ -43,8 +52,7 @@ cdef Py_buffer * get_buffer(object obj) except NULL:
         sptr = PyUnicode_AsUTF8AndSize(obj, &length)
         fill_buf_rc = PyBuffer_FillInfo(pybuf, obj, <void *>sptr, length, 1, 0)
         if fill_buf_rc < 0:
-            PyBuffer_Release(pybuf)
-            free(pybuf)
+            free_buffer(pybuf)
             raise ValueError("Could not fill internal buffer")
     
     # Handle all other bytes-like objects.
@@ -52,8 +60,7 @@ cdef Py_buffer * get_buffer(object obj) except NULL:
         if PyObject_CheckBuffer(obj):
             get_buffer_rc = PyObject_GetBuffer(obj, pybuf, 0)
             if not PyBuffer_IsContiguous(pybuf, b"A"):
-                PyBuffer_Release(pybuf)
-                free(pybuf)
+                free_buffer(pybuf)
                 raise ValueError("Bytes-like object must be contiguous")
         else:
             free(pybuf)
