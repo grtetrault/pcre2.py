@@ -3,7 +3,7 @@
 # Standard libraries.
 from libc.stdint cimport uint32_t
 from libc.stdlib cimport malloc, free
-from cpython cimport Py_buffer, PyBuffer_Release
+from cpython cimport Py_buffer
 from cpython cimport array
 from cpython.unicode cimport PyUnicode_Check
 from cpython.memoryview cimport PyMemoryView_FromMemory
