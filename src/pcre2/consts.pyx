@@ -62,38 +62,6 @@ class CompileOption(MetaOption):
     UTF = PCRE2_UTF
 
 
-class MatchOption(MetaOption):
-    """ Option bits to be used when matching. See the following PCRE2
-    documentation for a brief overview of the relevant options:
-    http://pcre.org/current/doc/html/pcre2_match.html
-    """
-    NOTBOL = PCRE2_NOTBOL
-    NOTEOL = PCRE2_NOTEOL
-    NOTEMPTY = PCRE2_NOTEMPTY
-    NOTEMPTY_ATSTART = PCRE2_NOTEMPTY_ATSTART
-
-
-class SubstituteOption(MetaOption):
-    """ Option bits to be used when making pattern substitutions. See the
-    following PCRE2 documentation for a brief overview of the relevant
-    options:
-    http://pcre.org/current/doc/html/pcre2_substitute.html
-    """
-    NOTBOL = PCRE2_NOTBOL
-    NOTEOL = PCRE2_NOTEOL
-    NOTEMPTY = PCRE2_NOTEMPTY
-    NOTEMPTY_ATSTART = PCRE2_NOTEMPTY_ATSTART
-    GLOBAL = PCRE2_SUBSTITUTE_GLOBAL
-    EXTENDED = PCRE2_SUBSTITUTE_EXTENDED
-    UNSET_EMPTY = PCRE2_SUBSTITUTE_UNSET_EMPTY
-    UNKNOWN_UNSET = PCRE2_SUBSTITUTE_UNKNOWN_UNSET
-    LITERAL = PCRE2_SUBSTITUTE_LITERAL
-    REPLACEMENT_ONLY = PCRE2_SUBSTITUTE_REPLACEMENT_ONLY
-
-# Type alias.
-ExpandOption = SubstituteOption
-
-
 class BsrChar(IntEnum):
     """ Indicator for what character(s) are denoted by `\r`.
     """
@@ -115,10 +83,7 @@ class NewlineChar(IntEnum):
 # Shorthands
 A = CompileOption.ANCHORED
 I = CompileOption.CASELESS
-G = SubstituteOption.GLOBAL
 M = CompileOption.MULTILINE
-NE = MatchOption.NOTEMPTY
-NS = MatchOption.NOTEMPTY_ATSTART
 U = CompileOption.UTF
 S = CompileOption.DOTALL
 X = CompileOption.EXTENDED

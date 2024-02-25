@@ -163,7 +163,7 @@ cdef class Match:
         return end
 
 
-    def substring(self, group=0):
+    def substring(self, group=0, default=""):
         """ Get the full matched substring, or that of a specified captured
         group.
         """
@@ -171,11 +171,25 @@ cdef class Match:
         cdef size_t res_len
         if isinstance(group, int):
             grp_num = <uint32_t>group
+
+            # Handle unset matches and return default if none found
+            is_substring_set = pcre2_substring_length_bynumber(self._mtch, grp_num, NULL)
+            if is_substring_set < 0:
+                return default
+
             get_rc = pcre2_substring_get_bynumber(self._mtch, grp_num, &res, &res_len)
             if get_rc < 0:
                 raise_from_rc(get_rc, None)
         else:
             grp_name = get_buffer(group)
+
+            # Handle unset matches and return default if none found
+            is_substring_set = pcre2_substring_length_byname(
+                self._mtch, <pcre2_sptr_t>grp_name.buf, NULL
+            )
+            if is_substring_set < 0:
+                return default
+
             get_rc = pcre2_substring_get_byname(
                 self._mtch, <pcre2_sptr_t>grp_name.buf, &res, &res_len
             )
@@ -238,6 +252,8 @@ cdef class Match:
         free_buffer(repl)
         return result
 
-    def groups(self):
-        """Return a tuple containing all the subgroups of the match, from 1 up to however many groups are in the pattern."""
-        return tuple(self.substring(g) for g in range(self.pattern.capture_count))
+    def groups(self, default=""):
+        """ Return a tuple containing all the subgroups of the match, from 1 up to however many
+        groups are in the pattern.
+        """
+        return tuple(self.substring(g, default=default) for g in range(self.pattern.capture_count))
