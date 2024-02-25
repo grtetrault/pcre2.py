@@ -11,7 +11,7 @@ from .pattern cimport Pattern
 
 cdef class Scanner:
     cdef Pattern _pattern
-    cdef object _subject
+    cdef Py_buffer *_subj
 
     cdef bint _is_crlf_newline
     cdef bint _is_patn_utf
@@ -22,5 +22,5 @@ cdef class Scanner:
 
     @staticmethod
     cdef Scanner _from_data(
-        Pattern pattern, object subject, size_t offset
+        Pattern pattern, Py_buffer *subject, size_t offset
     )

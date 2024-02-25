@@ -4,7 +4,6 @@
 from enum import IntEnum
 from libc.stdint cimport uint32_t
 from libc.stdlib cimport malloc, free
-from cpython cimport PyBuffer_Release
 from cpython.unicode cimport PyUnicode_Check
 cimport cython
 
@@ -48,7 +47,7 @@ cdef class Match:
 
     def __dealloc__(self):
         if self._subj is not NULL:
-            PyBuffer_Release(self._subj)
+            free_buffer(self._subj)
         if self._mtch is not NULL:
             pcre2_match_data_free(self._mtch)
 
@@ -118,7 +117,7 @@ cdef class Match:
             grp_num = (first_entry[0] << 8) | first_entry[1]
             if grp_num < 0:
                 raise_from_rc(grp_num, None)
-            PyBuffer_Release(grp_name)
+            free_buffer(grp_name)
 
         if grp_num > <int>ovec_count:
             raise ValueError("Group referenced out of bounds")
@@ -151,7 +150,7 @@ cdef class Match:
             grp_num = (first_entry[0] << 8) | first_entry[1]
             if grp_num < 0:
                 raise_from_rc(grp_num, None)
-            PyBuffer_Release(grp_name)
+            free_buffer(grp_name)
 
         if grp_num > <int>ovec_count:
             raise ValueError("Group referenced out of bounds.")
@@ -182,7 +181,7 @@ cdef class Match:
             )
             if get_rc < 0:
                 raise_from_rc(get_rc, None)
-            PyBuffer_Release(grp_name)
+            free_buffer(grp_name)
 
         # Clean up result and convert to unicode as appropriate.
         result = (<pcre2_sptr_t>res)[:res_len]
@@ -236,7 +235,7 @@ cdef class Match:
             result = result.decode("utf-8")
         
         free(res)
-        PyBuffer_Release(repl)
+        free_buffer(repl)
         return result
 
     def groups(self):

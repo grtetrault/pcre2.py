@@ -3,7 +3,7 @@
 # Standard libraries.
 from libc.stdint cimport uint32_t
 from libc.stdlib cimport malloc, free
-from cpython cimport Py_buffer, PyBuffer_Release
+from cpython cimport Py_buffer
 from cpython cimport array
 from cpython.unicode cimport PyUnicode_Check
 from cpython.memoryview cimport PyMemoryView_FromMemory
@@ -62,7 +62,7 @@ cdef class Pattern:
 
     def __dealloc__(self):
         if self._patn is not NULL:
-            PyBuffer_Release(self._patn)
+            free_buffer(self._patn)
         if self._code is not NULL:
             pcre2_code_free(self._code)
 
@@ -339,7 +339,8 @@ cdef class Pattern:
             subj_type = "string" if is_subj_utf else "bytes-like"
             raise ValueError(f"Cannot use a {patn_type} pattern with a {subj_type} subject")
 
-        return Scanner._from_data(self, subject, offset)
+        subj = get_buffer(subject)
+        return Scanner._from_data(self, subj, offset)
 
 
     def split(self, subject, maxsplit=0, offset=0):
@@ -413,8 +414,8 @@ cdef class Pattern:
         # Capture return codes from both substitute attempts.
         if substitute_rc < 0:
             free(res)
-            PyBuffer_Release(subj)
-            PyBuffer_Release(repl)
+            free_buffer(subj)
+            free_buffer(repl)
             rc[0] = substitute_rc
             return NULL, 0
         
@@ -467,6 +468,6 @@ cdef class Pattern:
             result = result.decode("utf-8")
         
         free(res)
-        PyBuffer_Release(subj)
-        PyBuffer_Release(repl)
+        free_buffer(subj)
+        free_buffer(repl)
         return result
