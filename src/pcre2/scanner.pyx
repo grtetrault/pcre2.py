@@ -171,5 +171,3 @@ cdef class Scanner:
             return Match._from_data(
                 mtch, self._pattern, subj_copy, self._state_ofst, self._state_opts
             )
-        
-        pcre2_match_data_free(mtch)
