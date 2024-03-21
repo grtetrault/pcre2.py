@@ -8,8 +8,6 @@ import sys
 import pcre2
 import multiprocessing as mp
 
-GLOBAL = pcre2.SubstituteOption.GLOBAL
-
 
 def init_pool(_data):
     # Pool initializer
@@ -29,7 +27,7 @@ def seq_subs(data, subs, result):
     # Apply sequential substitions to given data and store in multiprocess
     # manager value.
     for patn, repl in subs:
-        data = pcre2.substitute(patn, repl, data, options=GLOBAL)
+        data = pcre2.substitute(patn, repl, data)
     result.value = data
 
 
@@ -37,7 +35,7 @@ def main():
     data = sys.stdin.buffer.read()
     init_len = len(data)
 
-    data = pcre2.substitute(b">.*\n|\n", b"", data, options=GLOBAL)
+    data = pcre2.substitute(b">.*\n|\n", b"", data)
     clean_len = len(data)
 
     patns = (
