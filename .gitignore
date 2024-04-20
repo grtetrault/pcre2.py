@@ -18,3 +18,5 @@ src/pcre2/**/*.html
 
 .pytest_cache
 Profile.prof
+
+scratch

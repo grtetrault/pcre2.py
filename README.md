@@ -63,10 +63,10 @@ Substitution is also supported, both from `Pattern` and `Match` objects,
 
 ```python
 >>> repl = '$2 $1'
->>> patn.substitute(repl, subj)
-'bar foo buzz bazz'
->>> patn.substitute(repl, subj, options=pcre2.G) # Global substitutions are also supported.
+>>> patn.substitute(repl, subj) # Global substitutions by default.
 'bar foo bazz buzz'
+>>> patn.substitute(repl, subj, suball=False)
+'bar foo buzz bazz'
 >>> match.expand(repl)
 'bar foo buzz bazz'
 ```

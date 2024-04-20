@@ -1,7 +1,6 @@
 import pytest
 import pcre2
 from pcre2.exceptions import CompileError, MatchError, LibraryError
-from pcre2.consts import CompileOption, MatchOption, SubstituteOption
 
 def test_match_groups():
     assert pcre2.match('a', 'a').groups() == ()

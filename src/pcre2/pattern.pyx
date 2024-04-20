@@ -298,7 +298,7 @@ cdef class Pattern:
         return result
 
 
-    def match(self, subject, offset=0, options=0):
+    def match(self, subject, offset=0):
         """ If match exists, returns the corresponding Match object. Otherwise
         a MatchError is thrown in the case of no matches. See the following
         PCRE2 documentation for a brief overview of the relevant options:
@@ -314,7 +314,7 @@ cdef class Pattern:
         cdef Py_buffer *subj = get_buffer(subject)
         cdef size_t obj_ofst = <size_t>offset
         cdef size_t ofst = obj_ofst
-        cdef uint32_t opts = <uint32_t>options
+        cdef uint32_t opts = 0
 
         # Convert indices accordingly.
         if is_subj_utf:
@@ -422,7 +422,9 @@ cdef class Pattern:
         return res, res_len
 
 
-    def substitute(self, replacement, subject, offset=0, options=0, low_memory=False):
+    def substitute(
+        self, replacement, subject, offset=0, suball=True, literal=False, low_memory=False
+    ):
         """ Returns the string obtained by replaces matches in subject with a
         replacement. Note that option bits can significantly change the
         functions behavior. See the following PCRE2 documentation for a brief
@@ -446,7 +448,17 @@ cdef class Pattern:
         repl = get_buffer(replacement)
         cdef size_t obj_ofst = <size_t>offset
         cdef size_t ofst = obj_ofst
-        cdef uint32_t opts = <uint32_t>options
+        
+        # Fill options from flags
+        cdef uint32_t opts = 0
+        if suball:
+            opts = opts | PCRE2_SUBSTITUTE_GLOBAL
+        if literal:
+            opts = opts | PCRE2_SUBSTITUTE_LITERAL
+
+        # Always replace unmatched groups with an empty string to match behavior of re
+        opts = opts | PCRE2_SUBSTITUTE_UNSET_EMPTY
+
         if is_subj_utf:
             ofst, obj_ofst = codepoint_to_codeunit(subj, obj_ofst, 0, 0)
 

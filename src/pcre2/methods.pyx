@@ -45,39 +45,50 @@ def compile(pattern, options=0, jit=False):
     return pattern_obj
 
 
-def findall(pattern, subject, offset=0):
+def findall(pattern, subject, offset=0, options=0, jit=True):
     """ Shorthand for compiling a pattern, then calling findall. Note that this
     will use JIT compilation.
     """
-    return compile(pattern, jit=True).findall(subject, offset=offset)
+    return compile(pattern, options=options, jit=jit).findall(subject, offset=offset)
 
 
-def match(pattern, subject, offset=0, options=0):
+def match(pattern, subject, offset=0, options=0, jit=False):
     """ Shorthand for compiling a pattern, then calling match.
     """
-    return compile(pattern).match(subject, offset=offset, options=options)
+    return compile(pattern, options=options, jit=jit).match(subject, offset=offset)
 
 
-def scan(pattern, subject, offset=0):
+def scan(pattern, subject, offset=0, options=0, jit=True):
     """ Shorthand for compiling a pattern, then calling scan. Note that this
     will use JIT compilation.
     """
-    return compile(pattern, jit=True).scan(subject, offset=offset)
+    return compile(pattern, options=options, jit=jit).scan(subject, offset=offset)
 
 
-def split(pattern, subject, maxsplit=0, offset=0):
+def split(pattern, subject, maxsplit=0, offset=0, options=0, jit=True):
     """ Shorthand for compiling a pattern, then calling split. Note that this
     will use JIT compilation.
     """
-    return compile(pattern, jit=True).split(subject, maxsplit=maxsplit, offset=offset)
+    pattern_obj = compile(pattern, options=options, jit=jit)
+    return pattern_obj.split(subject, maxsplit=maxsplit, offset=offset)
 
 
-def substitute(pattern, replacement, subject, offset=0, options=0, low_memory=False):
+def substitute(
+    pattern,
+    replacement,
+    subject,
+    offset=0,
+    suball=True,
+    literal=False,
+    low_memory=False,
+    options=0,
+    jit=True
+):
     """ Shorthand for compiling a pattern, then calling substitute.
     """
-    pattern_obj = compile(pattern)
-    if <int>options & PCRE2_SUBSTITUTE_GLOBAL:
+    pattern_obj = compile(pattern, options=options, jit=jit)
+    if suball:
         pattern_obj.jit_compile()
     return pattern_obj.substitute(
-        replacement, subject, offset=offset, options=options, low_memory=low_memory
+        replacement, subject, offset=offset, suball=suball, literal=literal, low_memory=low_memory
     )

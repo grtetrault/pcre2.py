@@ -1,7 +1,7 @@
 import pytest
 import pcre2
 from pcre2.exceptions import CompileError, MatchError, LibraryError
-from pcre2.consts import CompileOption, MatchOption, SubstituteOption
+from pcre2.consts import CompileOption
 
 
 test_data_pattern_compile_success = [
@@ -69,9 +69,9 @@ test_data_pattern_match_success = [
     "pattern,subject,options,offset,return_code", test_data_pattern_match_success
 )
 def test_pattern_match_success(pattern, subject, options, offset, return_code):
-    p = pcre2.compile(pattern)
+    p = pcre2.compile(pattern, options=options)
     try:
-        m = p.match(subject, options=options, offset=offset)
+        m = p.match(subject, offset=offset)
         rc = "SUCCESS"
     except MatchError as e:
         rc = "MATCH_ERROR"
@@ -101,18 +101,18 @@ def test_pattern_scan_length(pattern, subject, offset, iter_length):
 
 
 test_pattern_substitute = [
-    (b"[abc]*", b"", b"dabacbaccbacccb", 0, 0, b"dabacbaccbacccb"),
-    ("[abc]*", "", "dabacbaccbacccb", 0, 0, "dabacbaccbacccb"),
-    ("[abc]*", "", "dabacbaccbacccb", 0, 1, "d"),
-    ("a(•{2,})b", "a•b", "aba•ba••ba•••b", SubstituteOption.GLOBAL, 0, "aba•ba•ba•b"),
-    ("a(•{2,})b", "a•b", "aba•ba••ba•••b", SubstituteOption.GLOBAL | SubstituteOption.REPLACEMENT_ONLY, 0, "a•ba•b"),
+    (b"[abc]*", b"", b"dabacbaccbacccb", False, False, 0, b"dabacbaccbacccb"),
+    ("[abc]*", "", "dabacbaccbacccb", False, False, 0, "dabacbaccbacccb"),
+    ("[abc]*", "", "dabacbaccbacccb", False, False, 1, "d"),
+    ("a(•{2,})b", "a•b", "aba•ba••ba•••b", True, False, 0, "aba•ba•ba•b"),
+    ("a(•{2,})b", "a$1b", "aba•ba••ba•••b", True, True, 0, "aba•ba$1ba$1b"),
 ]
 @pytest.mark.parametrize(
-    "pattern,replacement,subject,options,offset,result", test_pattern_substitute
+    "pattern,replacement,subject,suball,literal,offset,result", test_pattern_substitute
 )
-def test_pattern_substitute(pattern, replacement, subject, options, offset, result):
+def test_pattern_substitute(pattern, replacement, subject, suball, literal, offset, result):
     p = pcre2.compile(pattern)
-    assert p.substitute(replacement, subject, options=options, offset=offset) == result
+    assert p.substitute(replacement, subject, suball=suball, literal=literal, offset=offset) == result
 
 def test_pattern_findall():
     p = pcre2.compile(r'(\w+)=(\d+)')

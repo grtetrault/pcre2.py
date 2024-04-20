@@ -443,10 +443,22 @@ cdef extern from "pcre2.h":
     )
 
     # String extraction from match data blocks.
+    int pcre2_substring_length_byname(
+        pcre2_match_data_t *match_data,
+        pcre2_sptr_t name,
+        size_t *bufflen
+    )
+
     int pcre2_substring_get_byname(
         pcre2_match_data_t *match_data,
         pcre2_sptr_t name, 
         uint8_t **bufferptr,
+        size_t *bufflen
+    )
+
+    int pcre2_substring_length_bynumber(
+        pcre2_match_data_t *match_data,
+        uint32_t number,
         size_t *bufflen
     )
 
