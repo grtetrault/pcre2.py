@@ -18,5 +18,7 @@ src/pcre2/**/*.html
 
 .pytest_cache
 Profile.prof
+profile.html
+profile.json
 
 scratch
