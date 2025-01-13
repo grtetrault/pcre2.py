@@ -376,7 +376,7 @@ def match_generator(code, object subject, size_t length, size_t offset):
             byte_length = idx_char_to_byte(subj_sptr, length)
             cur_byte_offset = idx_char_to_byte(subj_sptr, offset)
 
-    while cur_byte_offset < byte_length:
+    while cur_byte_offset <= byte_length:
         match_data = _match(code, subj_sptr, byte_length, cur_byte_offset, options)
         if not match_data:
             # Default match is not achored so if no match found at current offset, then there

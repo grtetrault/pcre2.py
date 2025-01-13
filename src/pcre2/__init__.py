@@ -32,6 +32,7 @@ def compile(pattern, flags=0, jit=True):
         _cy.jit_compile(pcre2_code)
     return Pattern(pcre2_code, pattern, flags, jit)
 
+
 def search(pattern, string, flags=0, jit=True):
     return compile(pattern, flags, jit).search(string)
 
@@ -128,8 +129,8 @@ class Pattern:
         parts = []
         start = 0
         for match in islice(self.finditer(string), maxsplit or None):
-            parts.append(string[start:match.start()])
-            parts.extend(map(self.__getitem__, range(1, self.groups + 1)))
+            parts.append(string[start : match.start()])
+            parts.extend(map(match.__getitem__, range(1, self.groups + 1)))
             start = match.end()
         parts.append(string[start:])
         return parts
@@ -154,7 +155,7 @@ class Pattern:
             start = 0
             numsubs = 0
             for match in islice(self.finditer(string), count or None):
-                parts.append(string[start:match.start()])
+                parts.append(string[start : match.start()])
                 parts.append(repl(match))
                 start = match.end()
                 numsubs += 1
@@ -194,7 +195,7 @@ class Match:
             template,
             self.string,
             options=options,
-            match_data=self._pcre2_match_data
+            match_data=self._pcre2_match_data,
         )
         return res
 
