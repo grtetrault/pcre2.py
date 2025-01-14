@@ -110,13 +110,15 @@ test_pattern_substitute = [
     ("[abc]*", "", "dabacbaccbacccb", 0, "d"),
     ("a(•{2,})b", "a•b", "aba•ba••ba•••b", 0, "aba•ba•ba•b"),
     ("a(•{2,})b", "a$1b", "aba•ba••ba•••b", 0, "aba•ba••ba•••b"),
+    ("a(•{2,})b", lambda m: m[0] + m[0], "aba•ba••ba•••b", 0, "aba•ba••ba••ba•••ba•••b"),
+    ("a(•{2,})b", lambda m: m[1] + m[1], "aba•ba••ba•••b", 0, "aba•b••••••••••"),
 ]
 
 
 @pytest.mark.parametrize("pattern,replacement,subject,count,result", test_pattern_substitute)
 def test_pattern_substitute(pattern, replacement, subject, count, result):
     p = pcre2.compile(pattern)
-    assert p.subn(replacement, subject, count)[0] == result
+    assert p.sub(replacement, subject, count) == result
 
 
 def test_pattern_findall():
