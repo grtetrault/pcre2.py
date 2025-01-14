@@ -2,7 +2,7 @@ from . import _cy
 
 from enum import IntFlag
 from itertools import islice
-from functools import cached_property, cache
+from functools import lru_cache, cache
 
 from sys import maxsize
 
@@ -130,11 +130,13 @@ class Pattern:
         self.flags = flags
         self.jit = jit
 
-    @cached_property
+    @property
+    @lru_cache(1)
     def groups(self):
         return _cy.pattern_capture_count(self._pcre2_code)
 
-    @cached_property
+    @property
+    @lru_cache(1)
     def groupindex(self):
         return _cy.pattern_name_dict(self._pcre2_code)
 
@@ -379,7 +381,8 @@ class Match:
         """
         return self.span(group)[1]
 
-    @cached_property
+    @property
+    @lru_cache(1)
     def lastindex(self):
         max_end = -1
         max_group = None
@@ -392,7 +395,8 @@ class Match:
                 max_group = group
         return max_group
 
-    @cached_property
+    @property
+    @lru_cache(1)
     def lastgroup(self):
         max_group = self.lastindex
         if not max_group:
