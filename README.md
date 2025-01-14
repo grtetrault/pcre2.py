@@ -21,14 +21,21 @@ Building requires:
 
 ## Usage
 
-Regular expressions are compiled with `pcre2.compile()` which accepts both unicode strings and bytes-like objects.
+This library aims to be compatible with Python's built-in `re` module. In many cases, this means
+that `pcre2` can drop-in replace `re` to gain some performance (see benchmarks below).
+However, PCRE2 and Python implement different regex specifications, so patterns and behavior will
+not always be translatable (e.g., the syntax for group replacement differs).
+
+Regular expressions are compiled with `pcre2.compile()` which accepts both unicode strings and
+bytes-like objects.
 This returns a `Pattern` object.
-Expressions can be compiled with a number of options (combined with the bitwise-or operator) and can be JIT compiled,
+Expressions can be compiled with a number of options (combined with the bitwise-or operator) and
+can be JIT compiled,
 
 ```python
 >>> import pcre2
 >>> expr = r'(?<head>\w+)\s+(?<tail>\w+)'
->>> patn = pcre2.compile(expr, options=pcre2.I, jit=True)
+>>> patn = pcre2.compile(expr, flags=pcre2.I, jit=True)
 >>> # Patterns can also be JIT compiled after initialization.
 >>> patn.jit_compile()
 ```
@@ -36,15 +43,12 @@ Expressions can be compiled with a number of options (combined with the bitwise-
 Inspection of `Pattern` objects is done as follows,
 
 ```python
->>> patn.jit_size
-980
->>> patn.name_dict()
-{1: 'head', 2: 'tail'}
->>> patn.options
-524296
->>> # Deeper inspection into options is available.
->>> pcre2.CompileOption.decompose(patn.options)
-[<CompileOption.CASELESS: 0x8>, <CompileOption.UTF: 0x80000>]
+>>> patn.jit
+True
+>>> patn.groupindex
+{'head': 1, 'tail': 2}
+>>> patn.flags
+<CompileOption.IGNORECASE: 8>
 ```
 
 Once compiled, `Pattern` objects can be used to match against strings.
@@ -53,29 +57,29 @@ Matching return a `Match` object, which has several functions to view results,
 ```python
 >>> subj = 'foo bar buzz bazz'
 >>> match = patn.match(subj)
->>> match.substring()
+>>> match[0]
 'foo bar'
->>> match.start(), match.end()
-(8, 17)
+>>> match.span()
+(0, 7)
 ```
 
 Substitution is also supported, both from `Pattern` and `Match` objects,
 
 ```python
 >>> repl = '$2 $1'
->>> patn.substitute(repl, subj) # Global substitutions by default.
+>>> patn.sub(repl, subj) # Global substitutions by default.
 'bar foo bazz buzz'
->>> patn.substitute(repl, subj, suball=False)
+>>> patn.sub(repl, subj, count=1)
 'bar foo buzz bazz'
 >>> match.expand(repl)
-'bar foo buzz bazz'
+'bar foo'
 ```
 
 Additionally, `Pattern` objects support scanning over subjects for all non-overlapping matches,
 
 ```python
->>> for match in patn.scan(subj):
-...     print(match.substring('head'))
+>>> for match in patn.finditer(subj):
+...     print(match.group('head'))
 ...
 foo
 buzz
@@ -88,19 +92,21 @@ Below are the `regex-redux` benchmark results included in this repository,
 
 | Script              | Number of runs | Total time | Real time  | User time   | System time   |
 | ------------------- | -------------- | ---------- | ---------- | ----------- | ------------- |
-| `baseline.py`       |             10 |      3.020 |      0.302 |       0.020 |         0.086 |
-| `vanilla.py`        |             10 |     51.380 |      5.138 |      11.408 |         0.529 |
-| `hand_optimized.py` |             10 |     13.190 |      1.319 |       2.846 |         0.344 |
-| `pcre2_module.py`   |             10 |     13.670 |      1.367 |       2.269 |         0.532 |
+| baseline.py         |             10 |      3.230 |      0.323 |       0.020 |         0.100 |
+| re_vanilla.py       |             10 |     51.090 |      5.109 |      11.375 |         0.530 |
+| pcre2_vanilla.py    |             10 |     21.980 |      2.198 |       3.154 |         0.483 |
+| pcre2_optimized.py  |             10 |     14.860 |      1.486 |       2.520 |         0.548 |
+| cffi_optimized.py   |             10 |     14.130 |      1.413 |       3.111 |         0.411 |
  
 Script descriptions are as follows,
 
 | Script              | Description                                                          |
 | ------------------- | -------------------------------------------------------------------- |
 | `baseline.py`       | Reads input file and outputs stored expected output                  |
-| `vanilla.py`        | Pure Python version                                                  |
-| `hand_optimized.py` | Manually written Python `ctypes` bindings for shared PCRE2 C library |
-| `pcre2_module.py`   | Implementation using Python bindings written here                    |
+| `re_vanilla.py`     | Pure Python version                                                  |
+| `re_vanilla.py`     | Same as `re_vanilla.py`, with `pcre2` drop-in replacing `re`         |
+| `pcre2_module.py`   | More optimized implementation using `pcre2`                          |
+| `cffi_optimized.py` | Manually written Python `ctypes` bindings for shared PCRE2 C library |
 
 Tests were performed on an M2 Macbook Air.
 Note that to run benchmarks locally, [Git LFS](https://git-lfs.com/) must be installed to download the input dataset.

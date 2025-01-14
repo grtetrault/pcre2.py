@@ -18,7 +18,7 @@ SCRIPTS = [
     PROJ_CWD.joinpath("benchmarks/regex_redux/re_vanilla.py"),
     PROJ_CWD.joinpath("benchmarks/regex_redux/pcre2_vanilla.py"),
     PROJ_CWD.joinpath("benchmarks/regex_redux/pcre2_optimized.py"),
-    PROJ_CWD.joinpath("benchmarks/regex_redux/hand_optimized.py"),
+    PROJ_CWD.joinpath("benchmarks/regex_redux/cffi_optimized.py"),
 ]
 NUM_RUNS = 10
 
