@@ -1,8 +1,7 @@
 from . import _cy
 
-from enum import IntFlag
 from itertools import islice
-from functools import lru_cache, cache
+from functools import lru_cache
 
 from sys import maxsize
 
