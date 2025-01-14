@@ -12,7 +12,7 @@ from sys import maxsize
 # ============================================================================
 #                                                                    Constants
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 __libpcre2_version__ = _cy.__libpcre2_version__
 
 
