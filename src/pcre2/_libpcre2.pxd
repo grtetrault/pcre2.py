@@ -361,7 +361,6 @@ cdef extern from "pcre2.h":
     # support 8-bit strings.
     ctypedef const uint8_t *pcre2_sptr_t "PCRE2_SPTR"
 
-    
     # Error handling functions.
     int pcre2_get_error_message(
         int errorcode,

@@ -15,39 +15,20 @@ macro(add_pyx_file filename)
     target_link_libraries(${filename} pcre2-8-static)
     target_include_directories(${filename} PRIVATE ${PCRE2_INCLUDE_DIR})
     target_compile_options(${filename} PRIVATE ${CYTHON_EXTRA_COMPILE_ARGS})
-    
+
     install(TARGETS ${filename} LIBRARY DESTINATION src/pcre2)
 endmacro()
 
 # GLOB pattern is recommended against,
 # https://cmake.org/cmake/help/v3.14/command/file.html?highlight=file#filesystem
-add_pyx_file(consts)
-add_pyx_file(exceptions)
-add_pyx_file(match)
-add_pyx_file(methods)
-add_pyx_file(pattern)
-add_pyx_file(scanner)
-add_pyx_file(utils)
+add_pyx_file(_cy)
 
 
 # Include .pyx and .pxd files in distribution for use by Cython API.
 install(
     FILES
-        consts.pxd
-        consts.pyx
-        exceptions.pxd
-        exceptions.pyx
-        libpcre2.pxd
-        match.pxd
-        match.pyx
-        methods.pxd
-        methods.pyx
-        pattern.pxd
-        pattern.pyx
-        scanner.pxd
-        scanner.pyx
-        utils.pxd
-        utils.pyx
+        _libpcre2.pxd
+        _cy.pyx
     DESTINATION
         src/pcre2
 )

@@ -18,7 +18,7 @@ def init_pool(_data):
 def n_matches(patn):
     # Pool worker
     # Get number of non-overlapping matches in data global to pool.
-    n = sum(1 for _ in pcre2.scan(patn, data))
+    n = sum(1 for _ in pcre2.finditer(patn, data))
     return patn.decode(), n
 
 
@@ -27,7 +27,7 @@ def seq_subs(data, subs, result):
     # Apply sequential substitions to given data and store in multiprocess
     # manager value.
     for patn, repl in subs:
-        data = pcre2.substitute(patn, repl, data)
+        data = pcre2.sub(patn, repl, data)
     result.value = data
 
 
@@ -35,7 +35,7 @@ def main():
     data = sys.stdin.buffer.read()
     init_len = len(data)
 
-    data = pcre2.substitute(b">.*\n|\n", b"", data)
+    data = pcre2.sub(b">.*\n|\n", b"", data)
     clean_len = len(data)
 
     patns = (
@@ -53,7 +53,7 @@ def main():
         (b"tHa[Nt]", b"<4>"),
         (b"aND|caN|Ha[DS]|WaS", b"<3>"),
         (b"a[NSt]|BY", b"<2>"),
-        (b"<[^>]*>", b"|"),
+        (b"<[^>]*>",b"|"),
         (b"\\|[^|][^|]*\\|", b"-"),
     ]
 
