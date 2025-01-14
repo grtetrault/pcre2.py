@@ -16,7 +16,7 @@ def get_long_desciption():
 
 skbuild.setup(
     name = "pcre2",
-    version = "0.5.0",
+    version = "0.5.1",
     description = "Python bindings for the PCRE2 regular expression library",
     long_description = get_long_desciption(),
     long_description_content_type = "text/markdown",
@@ -35,6 +35,8 @@ skbuild.setup(
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
+        "Programming Language :: Python :: 3.13",
         "Operating System :: MacOS :: MacOS X",
         "Operating System :: POSIX :: Linux",
         "Operating System :: Microsoft :: Windows"
