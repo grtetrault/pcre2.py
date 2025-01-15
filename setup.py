@@ -16,7 +16,7 @@ def get_long_desciption():
 
 skbuild.setup(
     name = "pcre2",
-    version = "0.5.1",
+    version = "0.5.2",
     description = "Python bindings for the PCRE2 regular expression library",
     long_description = get_long_desciption(),
     long_description_content_type = "text/markdown",
