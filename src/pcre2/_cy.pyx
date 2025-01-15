@@ -67,12 +67,12 @@ cdef class PCRE2MatchData:
 cdef (uint8_t *, size_t) as_sptr_and_size(object obj) except *:
     cdef:
         int rc
-        const char *sptr = NULL
+        char *sptr = NULL
         Py_ssize_t length = 0
 
     # Encode unicode strings as UTF-8 buffers
     if isinstance(obj, str):
-        sptr = PyUnicode_AsUTF8AndSize(obj, &length)
+        sptr = <char *>PyUnicode_AsUTF8AndSize(obj, &length)
     elif isinstance(obj, bytes):
         rc = PyBytes_AsStringAndSize(obj, &sptr, &length)
     else:
