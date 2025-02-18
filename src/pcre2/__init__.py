@@ -296,6 +296,10 @@ class Match:
         self.pos = pos
         self.endpos = endpos
 
+    @property
+    def is_partial(self):
+        return self._pcre2_match_data.is_partial
+
     def expand(self, template):
         """
         Return the string obtained by substitution on the template string `template`.
