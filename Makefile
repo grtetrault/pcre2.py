@@ -1,7 +1,7 @@
 SHELL = /bin/bash
 
 init:
-	git submodule update --init
+	git submodule update --init --recursive
 	python3 -m venv ./.venv
 	./.venv/bin/pip install -r ./requirements/build-requirements.txt
 	./.venv/bin/pip install -r ./requirements/test-requirements.txt
