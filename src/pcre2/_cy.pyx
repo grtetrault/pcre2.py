@@ -316,8 +316,10 @@ cdef PCRE2MatchData _match(
 
     # Disable UTF-8 encoding checks for improved performance; it must be guaranteed that UTF-8
     # patterns are only run with Unicode strings
-    if pattern_is_utf(code):
-        options |= PCRE2_NO_UTF_CHECK
+    #
+    # PCRE2 is not memory-safe if this option is passed; not recommended.
+    # if pattern_is_utf(code):
+    #     options |= PCRE2_NO_UTF_CHECK
 
     # Attempt match of pattern onto the subject
     rc = _pcre2_match(code.ptr, subj_sptr, byte_length, byte_offset, options, match_data_ptr, NULL)
@@ -377,7 +379,9 @@ def match_generator(code, object subject, size_t length, size_t offset):
             cur_byte_offset = idx_char_to_byte(subj_sptr, offset)
 
     while cur_byte_offset <= byte_length:
-        match_data = _match(code, subj_sptr, byte_length, cur_byte_offset, options)
+        match_options = options
+        match_pos = cur_byte_offset
+        match_data = _match(code, subj_sptr, byte_length, match_pos, match_options)
         if not match_data:
             # Default match is not achored so if no match found at current offset, then there
             # will not be any ahead either
@@ -414,7 +418,7 @@ def match_generator(code, object subject, size_t length, size_t offset):
                     cur_char_offset = next_byte_offset
                 cur_byte_offset = next_byte_offset
 
-            yield match_data
+            yield match_data, match_pos, match_options
 
 
 # ============================================================================
@@ -429,6 +433,7 @@ def substitute(
     PCRE2Code code not None,
     object replacement,
     object subject,
+    size_t startoffset,
     uint32_t options = 0,
     PCRE2MatchData match_data = None,
 ):
@@ -465,7 +470,7 @@ def substitute(
         rc = pcre2_substitute(
             code.ptr,
             subj_sptr, subj_size,
-            0,
+            startoffset,
             options,
             match_data_ptr,
             NULL,
@@ -479,7 +484,7 @@ def substitute(
             rc = pcre2_substitute(
                 code.ptr,
                 subj_sptr, subj_size,
-                0,
+                startoffset,
                 options,
                 match_data_ptr,
                 NULL,
