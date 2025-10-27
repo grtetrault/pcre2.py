@@ -151,7 +151,7 @@ class Pattern:
         pos = max(0, min(pos, len(string)))
         endpos = max(0, min(endpos, len(string)))
         match_data = _cy.match(self._pcre2_code, string, endpos, pos, options)
-        return Match(match_data, self, string, pos, endpos) if match_data else None
+        return Match(match_data, self, string, pos, endpos, options) if match_data else None
 
     def search(self, string, pos=0, endpos=maxsize):
         """
@@ -181,8 +181,8 @@ class Pattern:
         """
         pos = max(0, min(pos, len(string)))
         endpos = max(0, min(endpos, len(string)))
-        for match_data in _cy.match_generator(self._pcre2_code, string, endpos, pos):
-            yield Match(match_data, self, string, pos, endpos)
+        for match_data, match_pos, match_options in _cy.match_generator(self._pcre2_code, string, endpos, pos):
+            yield Match(match_data, self, string, match_pos, endpos, match_options)
 
     def findall(self, string, pos=0, endpos=maxsize):
         """
@@ -225,7 +225,7 @@ class Pattern:
 
     def _suball(self, template, string):
         options = _cy.SubstituteOption.GLOBAL | _cy.SubstituteOption.UNSET_EMPTY
-        return _cy.substitute(self._pcre2_code, template, string, options=options)
+        return _cy.substitute(self._pcre2_code, template, string, 0, options=options)
 
     def subn(self, repl, string, count=0):
         """
@@ -284,7 +284,7 @@ class Pattern:
 
 
 class Match:
-    def __init__(self, pcre2_match_data, re, string, pos, endpos):
+    def __init__(self, pcre2_match_data, re, string, pos, endpos, options):
         if not isinstance(pcre2_match_data, _cy.PCRE2MatchData):
             raise ValueError(
                 "PCRE2 match data must be of type `_cy.PCRE2MatchData`. It is not recommended to "
@@ -295,16 +295,18 @@ class Match:
         self.string = string
         self.pos = pos
         self.endpos = endpos
+        self.options = options
 
     def expand(self, template):
         """
         Return the string obtained by substitution on the template string `template`.
         """
-        options = _cy.SubstituteOption.REPLACEMENT_ONLY | _cy.SubstituteOption.UNSET_EMPTY
+        options = self.options | _cy.SubstituteOption.REPLACEMENT_ONLY | _cy.SubstituteOption.UNSET_EMPTY
         res, _ = _cy.substitute(
             self.re._pcre2_code,
             template,
             self.string,
+            self.pos,
             options=options,
             match_data=self._pcre2_match_data,
         )
