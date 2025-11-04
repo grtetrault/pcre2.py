@@ -15,11 +15,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v5
         with:
           submodules: recursive
 
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@v6
         name: Setup Python 3.9
         with:
           python-version: "3.9"
@@ -39,8 +39,9 @@ jobs:
           pytest
 
       - name: Upload artifacts to GitHub
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
+          name: artifact-sdist
           path: ./dist/*.tar.gz
 
   build_wheels:
@@ -51,25 +52,31 @@ jobs:
         include:
           - name: Windows AMD64
             os: windows-latest
+            platform: amd64
             build: cp*-win_amd64
           - name: macOS x86-64
             os: macos-latest
+            platform: x86_64
             build: "cp*-macosx_x86_64"
           - name: macOS ARM64
             os: macos-latest
+            platform: arm64
             build: "cp*-macosx_arm64"
           - name: Ubuntu x86-64
             os: ubuntu-latest
+            platform: x86_64
             build: "cp*-manylinux_x86_64"
           - name: Ubuntu x86-64 with MUSL
             os: ubuntu-latest
             build: "cp*-musllinux_x86_64"
+            platform: x86_64_musl
           - name: Ubuntu Aarch64
             os: ubuntu-latest
+            platform: aarch64
             build: "cp*-manylinux_aarch64"
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v5
         with:
             submodules: recursive
 
@@ -101,8 +108,9 @@ jobs:
         run: pipx run twine check wheelhouse/*
 
       - name: Upload artifacts to GitHub
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
+          name: artifact-${{ matrix.os }}-${{ matrix.platform }}
           path: ./wheelhouse/*.whl
 
   upload_pypi:
@@ -111,9 +119,10 @@ jobs:
     if: github.event_name == 'release' && github.event.action == 'published'
 
     steps:
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v6
         with:
-          name: artifact
+          pattern: artifact-*
+          merge-multiple: true
           path: dist
 
       - uses: pypa/gh-action-pypi-publish@v1.5.0
