@@ -314,8 +314,8 @@ cdef PCRE2MatchData _match(
     if match_data_ptr is NULL:
         raise MemoryError
 
-    # Disable UTF-8 encoding checks for improved performance; it must be gaurunteed that UTF-8
-    # patterns are only run with unicode strings
+    # Disable UTF-8 encoding checks for improved performance; it must be guaranteed that UTF-8
+    # patterns are only run with Unicode strings
     if pattern_is_utf(code):
         options |= PCRE2_NO_UTF_CHECK
 
