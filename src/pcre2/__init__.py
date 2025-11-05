@@ -150,8 +150,8 @@ class Pattern:
     def _match(self, string, pos=0, endpos=maxsize, options=0):
         pos = max(0, min(pos, len(string)))
         endpos = max(0, min(endpos, len(string)))
-        match_data = _cy.match(self._pcre2_code, string, endpos, pos, options)
-        return Match(match_data, self, string, pos, endpos, options) if match_data else None
+        match_data, match_pos, match_endpos, match_options = _cy.match(self._pcre2_code, string, endpos, pos, options)
+        return Match(match_data, self, string, match_pos, match_endpos, match_options) if match_data else None
 
     def search(self, string, pos=0, endpos=maxsize):
         """
@@ -181,8 +181,10 @@ class Pattern:
         """
         pos = max(0, min(pos, len(string)))
         endpos = max(0, min(endpos, len(string)))
-        for match_data, match_pos, match_options in _cy.match_generator(self._pcre2_code, string, endpos, pos):
-            yield Match(match_data, self, string, match_pos, endpos, match_options)
+        for match_data, match_pos, match_endpos, match_options in (
+            _cy.match_generator(self._pcre2_code, string, endpos, pos)
+        ):
+            yield Match(match_data, self, string, match_pos, match_endpos, match_options)
 
     def findall(self, string, pos=0, endpos=maxsize):
         """
@@ -301,7 +303,9 @@ class Match:
         """
         Return the string obtained by substitution on the template string `template`.
         """
-        options = self.options | _cy.SubstituteOption.REPLACEMENT_ONLY | _cy.SubstituteOption.UNSET_EMPTY
+        options = (
+            self.options | _cy.SubstituteOption.REPLACEMENT_ONLY | _cy.SubstituteOption.UNSET_EMPTY
+        )
         res, _ = _cy.substitute(
             self.re._pcre2_code,
             template,

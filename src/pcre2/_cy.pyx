@@ -7,6 +7,7 @@ from libc.string cimport strlen
 from cpython.unicode cimport PyUnicode_Check
 cdef extern from "Python.h":
     const char * PyUnicode_AsUTF8AndSize(object unicode, Py_ssize_t *size)
+    int PyBytes_Check(object obj)
     int PyBytes_AsStringAndSize(object obj, char **buffer, Py_ssize_t *length)
 
 from _libpcre2 cimport *
@@ -71,9 +72,11 @@ cdef (uint8_t *, size_t) as_sptr_and_size(object obj) except *:
         Py_ssize_t length = 0
 
     # Encode unicode strings as UTF-8 buffers
-    if isinstance(obj, str):
+    if PyUnicode_Check(obj):
         sptr = <char *>PyUnicode_AsUTF8AndSize(obj, &length)
-    elif isinstance(obj, bytes):
+        if sptr is NULL:
+            raise ValueError("The 'str' cannot be represented as UTF-8 (contains surrogate code points?)")
+    elif PyBytes_Check(obj):
         rc = PyBytes_AsStringAndSize(obj, &sptr, &length)
     else:
         raise ValueError("Only objects of type 'str' and 'bytes' are supported")
@@ -99,16 +102,19 @@ cdef size_t idx_byte_to_char(
 
 
 cdef size_t idx_char_to_byte(
-    uint8_t *sptr, size_t char_idx, size_t start_byte_idx = 0, size_t start_char_idx = 0
+    uint8_t *sptr, size_t sptr_size, size_t char_idx, size_t start_byte_idx = 0, size_t start_char_idx = 0
 ):
     cdef:
         size_t cur_byte_idx = start_byte_idx
         size_t cur_char_idx = start_char_idx
 
     while cur_char_idx < char_idx:
-        cur_byte_idx += 1
         if (sptr[cur_byte_idx] & 0xC0) != 0x80:
             cur_char_idx += 1
+        cur_byte_idx += 1
+
+    while cur_byte_idx < sptr_size and (sptr[cur_byte_idx] & 0xC0) == 0x80:
+        cur_byte_idx += 1
 
     return cur_byte_idx
 
@@ -202,20 +208,23 @@ def pattern_name_dict(PCRE2Code code not None):
         const uint8_t *name_table, *name
         uint32_t name_count, name_entry_size
         int idx, offset
+        object encoding
 
     # Get name table related information
     raise_from_rc(pcre2_pattern_info(code.ptr, PCRE2_INFO_NAMECOUNT, &name_count))
     raise_from_rc(pcre2_pattern_info(code.ptr, PCRE2_INFO_NAMEENTRYSIZE, &name_entry_size))
     raise_from_rc(pcre2_pattern_info(code.ptr, PCRE2_INFO_NAMETABLE, &name_table))
 
+    encoding = "UTF-8" if pattern_is_utf(code) else "Latin-1"
+
     # Convert byte table to dictionary mapping group names to numbers
     name_dict = {}
     for idx in range(name_count):
         # Name table is structured with first two bytes of name table contain group number
-        # followed by name string (gaurunteed to be ASCII for non-unicode patterns)
+        # followed by name string (which is in Latin-1 for non-unicode patterns)
         offset = idx * name_entry_size
         name = &name_table[offset + 2]
-        group_name = name[:strlen(<const char *>name)].decode("UTF-8")
+        group_name = name[:strlen(<const char *>name)].decode(encoding)
         group_number = int((name_table[offset] << 8) | name_table[offset + 1])
         name_dict[group_name] = group_number
 
@@ -228,8 +237,8 @@ def substring_span_bynumber(PCRE2MatchData match_data not None, object subject, 
         uint8_t *subj_sptr
         size_t subj_size
         int rc
-        int start = -1
-        int end = -1
+        size_t start
+        size_t end
 
     # Get views into object memory
     subj_sptr, subj_size = as_sptr_and_size(subject)
@@ -245,7 +254,9 @@ def substring_span_bynumber(PCRE2MatchData match_data not None, object subject, 
             start = idx_byte_to_char(subj_sptr, start)
             end = idx_byte_to_char(subj_sptr, end)
 
-    return (start, end)
+        return (start, end)
+
+    return (-1, -1)
 
 
 def substring_bynumber(PCRE2MatchData match_data not None, object subject, size_t number):
@@ -254,8 +265,8 @@ def substring_bynumber(PCRE2MatchData match_data not None, object subject, size_
         uint8_t *subj_sptr
         size_t subj_size
         int rc
-        int start = -1
-        int end = -1
+        size_t start
+        size_t end
 
     # Get views into object memory
     subj_sptr, subj_size = as_sptr_and_size(subject)
@@ -314,13 +325,6 @@ cdef PCRE2MatchData _match(
     if match_data_ptr is NULL:
         raise MemoryError
 
-    # Disable UTF-8 encoding checks for improved performance; it must be guaranteed that UTF-8
-    # patterns are only run with Unicode strings
-    #
-    # PCRE2 is not memory-safe if this option is passed; not recommended.
-    # if pattern_is_utf(code):
-    #     options |= PCRE2_NO_UTF_CHECK
-
     # Attempt match of pattern onto the subject
     rc = _pcre2_match(code.ptr, subj_sptr, byte_length, byte_offset, options, match_data_ptr, NULL)
     if rc == PCRE2_ERROR_NOMATCH:
@@ -332,7 +336,7 @@ cdef PCRE2MatchData _match(
 def match(
     PCRE2Code code not None,
     object subject,
-    size_t length,
+    size_t length, # length & offset in logical (index) units
     size_t offset,
     uint32_t options = 0,
 ):
@@ -340,85 +344,69 @@ def match(
         uint8_t *subj_sptr
         size_t subj_size
 
-    if pattern_is_utf(code) ^ PyUnicode_Check(subject):
-        if pattern_is_utf(code):
-            raise ValueError("Cannot use a string pattern on a bytes-like object")
-        else:
-            raise ValueError("Cannot use a bytes pattern on a string-like object")
-
     # Get views into object memory
     subj_sptr, subj_size = as_sptr_and_size(subject)
 
-    if pattern_is_utf(code):
-        length = idx_char_to_byte(subj_sptr, length)
-        offset = idx_char_to_byte(subj_sptr, offset)
+    if PyUnicode_Check(subject):
+        # Disable UTF-8 encoding checks for improved performance
+        options |= PCRE2_NO_UTF_CHECK
 
-    return _match(code, subj_sptr, length, offset, options)
+        length = idx_char_to_byte(subj_sptr, subj_size, length)
+        offset = idx_char_to_byte(subj_sptr, subj_size, offset)
+
+    return _match(code, subj_sptr, length, offset, options), offset, length, options
 
 
-def match_generator(code, object subject, size_t length, size_t offset):
+def match_generator(
+    PCRE2Code code not None,
+    object subject,
+    size_t length, # length & offset in logical (index) units
+    size_t offset,
+):
     cdef:
-        size_t options = 0
+        uint32_t starting_options = 0
+        uint32_t state_options = 0
+        uint32_t match_options
         size_t byte_length = length
-        size_t cur_char_offset = offset
-        size_t cur_byte_offset = offset
-        size_t next_char_offset
-        size_t next_byte_offset
-
-    if pattern_is_utf(code) ^ PyUnicode_Check(subject):
-        if pattern_is_utf(code):
-            raise ValueError("Cannot use a string pattern on a bytes-like object")
-        else:
-            raise ValueError("Cannot use a bytes pattern on a string-like object")
+        size_t byte_offset = offset
+        size_t match_pos
 
     # Get views into object memory
     subj_sptr, subj_size = as_sptr_and_size(subject)
 
-    if pattern_is_utf(code):
-            byte_length = idx_char_to_byte(subj_sptr, length)
-            cur_byte_offset = idx_char_to_byte(subj_sptr, offset)
+    if PyUnicode_Check(subject):
+        # Disable UTF-8 encoding checks for improved performance
+        starting_options |= PCRE2_NO_UTF_CHECK
 
-    while cur_byte_offset <= byte_length:
-        match_options = options
-        match_pos = cur_byte_offset
+        byte_length = idx_char_to_byte(subj_sptr, subj_size, length)
+        byte_offset = idx_char_to_byte(subj_sptr, subj_size, offset)
+
+    while byte_offset <= byte_length:
+        match_options = starting_options | state_options
+        match_pos = byte_offset
         match_data = _match(code, subj_sptr, byte_length, match_pos, match_options)
         if not match_data:
-            # Default match is not achored so if no match found at current offset, then there
-            # will not be any ahead either
-            if options == 0:
-                break
-            options = 0  # Reset options so empty strings can match at next offset
+            break
 
-            # Increment to next object and byte offsets
-            next_char_offset = cur_char_offset + 1
-            if pattern_is_utf(code):
-                cur_byte_offset = idx_char_to_byte(
-                    subj_sptr, next_char_offset, cur_byte_offset, cur_char_offset
-                )
-            else:
-                cur_byte_offset = next_char_offset
-            cur_char_offset = next_char_offset
         else:
             ovector = pcre2_get_ovector_pointer(match_data.ptr)
-            match_byte_end = ovector[1]
 
-            if cur_byte_offset == match_byte_end:
-                # If the matched string is empty ensure next is not
-                options = PCRE2_NOTEMPTY_ATSTART | PCRE2_ANCHORED
+            assert(match_pos <= ovector[0] and ovector[0] <= ovector[1])
+            assert(ovector[1] > match_pos or state_options == 0)
+
+            if ovector[0] == ovector[1]:
+                # If the matched string is empty ensure the next match makes progress
+                state_options = PCRE2_NOTEMPTY_ATSTART
             else:
-                options = 0  # Reset options so empty strings can match at next offset
+                state_options = 0  # Reset options so empty strings can match at next offset
 
-                # Convert the end in the byte string to the end in the object
-                next_byte_offset = match_byte_end
-                if pattern_is_utf(code):
-                    cur_char_offset = idx_byte_to_char(
-                        subj_sptr, next_byte_offset, cur_byte_offset, cur_char_offset
-                    )
-                else:
-                    cur_char_offset = next_byte_offset
-                cur_byte_offset = next_byte_offset
+            byte_offset = ovector[1]
 
-            yield match_data, match_pos, match_options
+            yield match_data, match_pos, byte_length, match_options
+
+            # No need to re-match after an empty match at the end (it will just find nothing)
+            if ovector[0] == ovector[1] and ovector[1] >= byte_length:
+                break
 
 
 # ============================================================================
@@ -433,7 +421,7 @@ def substitute(
     PCRE2Code code not None,
     object replacement,
     object subject,
-    size_t startoffset,
+    size_t startoffset, # in bytes - unlike _cy.match()
     uint32_t options = 0,
     PCRE2MatchData match_data = None,
 ):
@@ -446,14 +434,13 @@ def substitute(
     # Always compute the needed length if there is any overflow
     options |= PCRE2_SUBSTITUTE_OVERFLOW_LENGTH
 
-    if (
-        pattern_is_utf(code) ^ PyUnicode_Check(replacement)
-        or pattern_is_utf(code) ^ PyUnicode_Check(subject)
-    ):
-        if pattern_is_utf(code):
-            raise ValueError("Cannot use a string pattern on a bytes-like object")
-        else:
-            raise ValueError("Cannot use a bytes pattern on a string-like object")
+    # Disable UTF-8 encoding checks for improved performance
+    if match_data is None and PyUnicode_Check(subject):
+        options |= PCRE2_NO_UTF_CHECK
+
+    # Ensure that the replacement string is valid UTF-8, if the subject is a 'str' object.
+    if PyUnicode_Check(subject) and PyBytes_Check(replacement):
+        replacement = replacement.decode("UTF-8")
 
     # Get views into object memory
     repl_sptr, repl_size = as_sptr_and_size(replacement)
@@ -495,7 +482,8 @@ def substitute(
 
         # Non-error return code contains the number of substitutions made
         res_obj = bytes(res_sptr[:res_size])
-        if pattern_is_utf(code):
+        if PyUnicode_Check(subject):
+            # Match the type of the return object to the input object
             res_obj = res_obj.decode("UTF-8")
         return (res_obj, rc)
 
