@@ -314,13 +314,6 @@ cdef PCRE2MatchData _match(
     if match_data_ptr is NULL:
         raise MemoryError
 
-    # Disable UTF-8 encoding checks for improved performance; it must be gaurunteed that UTF-8
-    # patterns are only run with unicode strings
-    #
-    # PCRE2 is not memory-safe if this option is passed; not recommended.
-    #if pattern_is_utf(code):
-    #    options |= PCRE2_NO_UTF_CHECK
-
     # Attempt match of pattern onto the subject
     rc = _pcre2_match(code.ptr, subj_sptr, byte_length, byte_offset, options, match_data_ptr, NULL)
     if rc == PCRE2_ERROR_NOMATCH:
@@ -359,6 +352,7 @@ def match(
 def match_generator(code, object subject, size_t length, size_t offset):
     cdef:
         size_t options = 0
+        bint has_checked_utf = False
         size_t byte_length = length
         size_t cur_char_offset = offset
         size_t cur_byte_offset = offset
@@ -379,9 +373,13 @@ def match_generator(code, object subject, size_t length, size_t offset):
             cur_byte_offset = idx_char_to_byte(subj_sptr, offset)
 
     while cur_byte_offset <= byte_length:
-        match_options = options
-        match_pos = cur_byte_offset
-        match_data = _match(code, subj_sptr, byte_length, match_pos, match_options)
+        # Disable UTF-8 encoding checks after first pass for improved performance; it must be
+        # gaurunteed that UTF-8 patterns are only run with unicode strings
+        if pattern_is_utf(code) and has_checked_utf:
+           options |= PCRE2_NO_UTF_CHECK
+        has_checked_utf = True
+
+        match_data = _match(code, subj_sptr, byte_length, cur_byte_offset, options)
         if not match_data:
             # Default match is not achored so if no match found at current offset, then there
             # will not be any ahead either
@@ -418,7 +416,7 @@ def match_generator(code, object subject, size_t length, size_t offset):
                     cur_char_offset = next_byte_offset
                 cur_byte_offset = next_byte_offset
 
-            yield match_data, match_pos, match_options
+            yield match_data, cur_byte_offset, options
 
 
 # ============================================================================
