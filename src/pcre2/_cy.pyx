@@ -4,11 +4,8 @@
 from libc.stdint cimport uint8_t, uint32_t
 from libc.stdlib cimport malloc, free
 from libc.string cimport strlen
-from cpython.unicode cimport PyUnicode_Check
-cdef extern from "Python.h":
-    const char * PyUnicode_AsUTF8AndSize(object unicode, Py_ssize_t *size)
-    int PyBytes_Check(object obj)
-    int PyBytes_AsStringAndSize(object obj, char **buffer, Py_ssize_t *length)
+from cpython.unicode cimport PyUnicode_Check, PyUnicode_AsUTF8AndSize
+from cpython.bytes cimport PyBytes_Check, PyBytes_AsStringAndSize
 
 from _libpcre2 cimport *
 
@@ -74,10 +71,10 @@ cdef (uint8_t *, size_t) as_sptr_and_size(object obj) except *:
     # Encode unicode strings as UTF-8 buffers
     if PyUnicode_Check(obj):
         sptr = <char *>PyUnicode_AsUTF8AndSize(obj, &length)
-        if sptr is NULL:
-            raise ValueError("The 'str' cannot be represented as UTF-8 (contains surrogate code points?)")
+        assert(sptr is not NULL) # The function is supposed to throw on errors
     elif PyBytes_Check(obj):
         rc = PyBytes_AsStringAndSize(obj, &sptr, &length)
+        assert(rc == 0)
     else:
         raise ValueError("Only objects of type 'str' and 'bytes' are supported")
     return <uint8_t *>sptr, length
@@ -108,13 +105,14 @@ cdef size_t idx_char_to_byte(
         size_t cur_byte_idx = start_byte_idx
         size_t cur_char_idx = start_char_idx
 
-    while cur_char_idx < char_idx:
-        if (sptr[cur_byte_idx] & 0xC0) != 0x80:
-            cur_char_idx += 1
-        cur_byte_idx += 1
+    if cur_char_idx < char_idx:
+        while cur_char_idx < char_idx:
+            if (sptr[cur_byte_idx] & 0xC0) != 0x80:
+                cur_char_idx += 1
+            cur_byte_idx += 1
 
-    while cur_byte_idx < sptr_size and (sptr[cur_byte_idx] & 0xC0) == 0x80:
-        cur_byte_idx += 1
+        while cur_byte_idx < sptr_size and (sptr[cur_byte_idx] & 0xC0) == 0x80:
+            cur_byte_idx += 1
 
     return cur_byte_idx
 
@@ -221,7 +219,8 @@ def pattern_name_dict(PCRE2Code code not None):
     name_dict = {}
     for idx in range(name_count):
         # Name table is structured with first two bytes of name table contain group number
-        # followed by name string (which is in Latin-1 for non-unicode patterns)
+        # followed by name string (which can be assumed to be in Latin-1 for non-unicode
+        # patterns). Default builds of PCRE2 only allow ASCII character names.
         offset = idx * name_entry_size
         name = &name_table[offset + 2]
         group_name = name[:strlen(<const char *>name)].decode(encoding)
@@ -351,8 +350,8 @@ def match(
         # Disable UTF-8 encoding checks for improved performance
         options |= PCRE2_NO_UTF_CHECK
 
-        length = idx_char_to_byte(subj_sptr, subj_size, length)
-        offset = idx_char_to_byte(subj_sptr, subj_size, offset)
+        length = subj_size if length == len(subject) else idx_char_to_byte(subj_sptr, subj_size, length)
+        offset = subj_size if offset == len(subject) else idx_char_to_byte(subj_sptr, subj_size, offset)
 
     return _match(code, subj_sptr, length, offset, options), offset, length, options
 
@@ -378,8 +377,8 @@ def match_generator(
         # Disable UTF-8 encoding checks for improved performance
         starting_options |= PCRE2_NO_UTF_CHECK
 
-        byte_length = idx_char_to_byte(subj_sptr, subj_size, length)
-        byte_offset = idx_char_to_byte(subj_sptr, subj_size, offset)
+        byte_length = subj_size if length == len(subject) else idx_char_to_byte(subj_sptr, subj_size, length)
+        byte_offset = subj_size if offset == len(subject) else idx_char_to_byte(subj_sptr, subj_size, offset)
 
     while byte_offset <= byte_length:
         match_options = starting_options | state_options
@@ -439,8 +438,11 @@ def substitute(
         options |= PCRE2_NO_UTF_CHECK
 
     # Ensure that the replacement string is valid UTF-8, if the subject is a 'str' object.
-    if PyUnicode_Check(subject) and PyBytes_Check(replacement):
-        replacement = replacement.decode("UTF-8")
+    # This check is stricter than we require, and additionally forbids using a 'str'
+    # replacement with a 'bytes' subject, which would work with no problem but may be
+    # harder to explain or support in future.
+    if PyUnicode_Check(subject) ^ PyUnicode_Check(replacement):
+        raise ValueError("Type of subject and replacement must match")
 
     # Get views into object memory
     repl_sptr, repl_size = as_sptr_and_size(replacement)
