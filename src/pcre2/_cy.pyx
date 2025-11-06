@@ -21,13 +21,15 @@ __libpcre2_version__ = f"{PCRE2_MAJOR}.{PCRE2_MINOR}"
 # Pointer wrappers to manage lifetime and expose to Python code
 cdef class PCRE2Code:
     cdef pcre2_code_t *ptr
+    cdef bool _pattern_is_str
 
     @staticmethod
-    cdef PCRE2Code from_ptr(pcre2_code_t *ptr):
+    cdef PCRE2Code from_ptr(pcre2_code_t *ptr, bool pattern_is_str):
         """ Ownership of pointer is taken by the new instance """
         cdef PCRE2Code code
         code = PCRE2Code.__new__(PCRE2Code)
         code.ptr = ptr
+        code._pattern_is_str = pattern_is_str
         return code
 
     def __init__(self, *args, **kwargs):
@@ -155,7 +157,21 @@ class CompileOption(IntEnum):
     IGNORECASE = PCRE2_CASELESS
     MULTILINE = PCRE2_MULTILINE
     DOTALL = PCRE2_DOTALL
+    '''
+    Controls the input codec (whether the input bytes are read into characters by UTF-8
+    decoding). If the input pattern is a `str`, the default behaviour is UNICODE (and this
+    cannot be unset). If the input pattern is a `bytes`, the default is ASCII/Latin-1
+    (one byte per character), but UNICODE sets this to UTF-8.
+    '''
     UNICODE = PCRE2_UTF
+    '''
+    Controls the interpretation of character values. If characters are ASCII, then
+    (for example) '\w' does not match values outside the range 0-127. If the input pattern
+    is a `str`, the default behaviour is UNICODE_PROPS (and this cannot be unset). If the
+    input pattern is a `bytes`, the default is ASCII, but UNICODE_PROPS sets this to
+    interpret character values according to Unicode.
+    '''
+    UNICODE_PROPS = PCRE2_UCP
     VERBOSE = PCRE2_EXTENDED
 
 
@@ -172,14 +188,17 @@ def compile(object pattern, uint32_t options = 0):
 
     # Lock out the use of \C which can lead to patterns matching within characters
     options = options | PCRE2_NEVER_BACKSLASH_C
+
+    # Default to UNICODE and UNICODE_PROPS for `str` patterns. There is currently no
+    # way to disable this (switch to bytes input if this is required).
     if PyUnicode_Check(pattern):
-        options = options | PCRE2_UTF
+        options = options | PCRE2_UTF | PCRE2_UCP
 
     code = pcre2_compile(patn_sptr, patn_size, options, &rc, &errpos, NULL)
     if code is NULL:
         raise LibraryError(rc, ctxmsg=f"Compilation failed at byte {errpos}")
 
-    return PCRE2Code.from_ptr(code)
+    return PCRE2Code.from_ptr(code, PyUnicode_Check(pattern))
 
 
 def jit_compile(PCRE2Code code not None):
@@ -343,6 +362,15 @@ def match(
         uint8_t *subj_sptr
         size_t subj_size
 
+    # Although the error message says "cannot use..." there would actually be nothing
+    # wrong at all with removing this block and allowing it. It's simply a matter of
+    # policy and clarity, and to match Python's re module.
+    if code._pattern_is_str ^ PyUnicode_Check(subject):
+        if code._pattern_is_str:
+            raise ValueError("Cannot use a string pattern on a bytes-like object")
+        else:
+            raise ValueError("Cannot use a bytes pattern on a string-like object")
+
     # Get views into object memory
     subj_sptr, subj_size = as_sptr_and_size(subject)
 
@@ -353,7 +381,7 @@ def match(
         length = subj_size if length == len(subject) else idx_char_to_byte(subj_sptr, subj_size, length)
         offset = subj_size if offset == len(subject) else idx_char_to_byte(subj_sptr, subj_size, offset)
 
-    return _match(code, subj_sptr, length, offset, options), offset, length, options
+    return _match(code, subj_sptr, length, offset, options), offset, options
 
 
 def match_generator(
@@ -368,7 +396,16 @@ def match_generator(
         uint32_t match_options
         size_t byte_length = length
         size_t byte_offset = offset
-        size_t match_pos
+        size_t match_byte_offset
+
+    # Although the error message says "cannot use..." there would actually be nothing
+    # wrong at all with removing this block and allowing it. It's simply a matter of
+    # policy and clarity, and to match Python's re module.
+    if code._pattern_is_str ^ PyUnicode_Check(subject):
+        if code._pattern_is_str:
+            raise ValueError("Cannot use a string pattern on a bytes-like object")
+        else:
+            raise ValueError("Cannot use a bytes pattern on a string-like object")
 
     # Get views into object memory
     subj_sptr, subj_size = as_sptr_and_size(subject)
@@ -382,16 +419,16 @@ def match_generator(
 
     while byte_offset <= byte_length:
         match_options = starting_options | state_options
-        match_pos = byte_offset
-        match_data = _match(code, subj_sptr, byte_length, match_pos, match_options)
+        match_byte_offset = byte_offset
+        match_data = _match(code, subj_sptr, byte_length, match_byte_offset, match_options)
         if not match_data:
             break
 
         else:
             ovector = pcre2_get_ovector_pointer(match_data.ptr)
 
-            assert(match_pos <= ovector[0] and ovector[0] <= ovector[1])
-            assert(ovector[1] > match_pos or state_options == 0)
+            assert(match_byte_offset <= ovector[0] and ovector[0] <= ovector[1])
+            assert(ovector[1] > match_byte_offset or state_options == 0)
 
             if ovector[0] == ovector[1]:
                 # If the matched string is empty ensure the next match makes progress
@@ -401,7 +438,7 @@ def match_generator(
 
             byte_offset = ovector[1]
 
-            yield match_data, match_pos, byte_length, match_options
+            yield match_data, match_byte_offset, match_options
 
             # No need to re-match after an empty match at the end (it will just find nothing)
             if ovector[0] == ovector[1] and ovector[1] >= byte_length:
@@ -420,7 +457,7 @@ def substitute(
     PCRE2Code code not None,
     object replacement,
     object subject,
-    size_t startoffset, # in bytes - unlike _cy.match()
+    size_t byte_offset, # in bytes - unlike _cy.match()
     uint32_t options = 0,
     PCRE2MatchData match_data = None,
 ):
@@ -433,20 +470,39 @@ def substitute(
     # Always compute the needed length if there is any overflow
     options |= PCRE2_SUBSTITUTE_OVERFLOW_LENGTH
 
-    # Disable UTF-8 encoding checks for improved performance
-    if match_data is None and PyUnicode_Check(subject):
-        options |= PCRE2_NO_UTF_CHECK
+    # Although the error message says "cannot use..." there would actually be nothing
+    # wrong at all with removing this block and allowing it. It's simply a matter of
+    # policy and clarity, and to match Python's re module.
+    if code._pattern_is_str ^ PyUnicode_Check(subject):
+        if code._pattern_is_str:
+            raise ValueError("Cannot use a string pattern on a bytes-like object")
+        else:
+            raise ValueError("Cannot use a bytes pattern on a string-like object")
 
-    # Ensure that the replacement string is valid UTF-8, if the subject is a 'str' object.
-    # This check is stricter than we require, and additionally forbids using a 'str'
-    # replacement with a 'bytes' subject, which would work with no problem but may be
-    # harder to explain or support in future.
+    # Similarly, ensure that there is a match between the type of subject and replacement.
+    #
+    # Unlike the check that pattern and subject match, this one is cannot be simply removed.
+    # We pass in the PCRE2_NO_UTF_CHECK flag based on the type of subject, and that flag
+    # also affects the interpretation of replacement. So, we require a check that the
+    # replacement string is valid UTF-8, if the subject is a 'str' object (note that we
+    # could do this either by enforcing that replacement is a 'str', or by we could allow
+    # bytes as well if we do the decode here to validate it).
+    #
+    # For policy and clarity, we additionally forbid using a 'str' replacement with a
+    # 'bytes' subject, although there is no issue with that combination.
     if PyUnicode_Check(subject) ^ PyUnicode_Check(replacement):
-        raise ValueError("Type of subject and replacement must match")
+        if PyUnicode_Check(subject):
+            raise ValueError("Cannot use a string subject with a bytes-like template")
+        else:
+            raise ValueError("Cannot use a bytes subject with a string-like template")
 
     # Get views into object memory
     repl_sptr, repl_size = as_sptr_and_size(replacement)
     subj_sptr, subj_size = as_sptr_and_size(subject)
+
+    # Disable UTF-8 encoding checks for improved performance
+    if match_data is None and PyUnicode_Check(subject):
+        options |= PCRE2_NO_UTF_CHECK
 
     if match_data is not None:
         match_data_ptr = match_data.ptr
@@ -459,7 +515,7 @@ def substitute(
         rc = pcre2_substitute(
             code.ptr,
             subj_sptr, subj_size,
-            startoffset,
+            byte_offset,
             options,
             match_data_ptr,
             NULL,
@@ -473,7 +529,7 @@ def substitute(
             rc = pcre2_substitute(
                 code.ptr,
                 subj_sptr, subj_size,
-                startoffset,
+                byte_offset,
                 options,
                 match_data_ptr,
                 NULL,
