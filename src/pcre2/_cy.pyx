@@ -21,10 +21,10 @@ __libpcre2_version__ = f"{PCRE2_MAJOR}.{PCRE2_MINOR}"
 # Pointer wrappers to manage lifetime and expose to Python code
 cdef class PCRE2Code:
     cdef pcre2_code_t *ptr
-    cdef bool _pattern_is_str
+    cdef bint _pattern_is_str
 
     @staticmethod
-    cdef PCRE2Code from_ptr(pcre2_code_t *ptr, bool pattern_is_str):
+    cdef PCRE2Code from_ptr(pcre2_code_t *ptr, bint pattern_is_str):
         """ Ownership of pointer is taken by the new instance """
         cdef PCRE2Code code
         code = PCRE2Code.__new__(PCRE2Code)

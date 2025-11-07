@@ -299,14 +299,14 @@ class Match:
         self.pos = pos
         self.endpos = endpos
         self._byte_offset = byte_offset
-        self.options = options
+        self._options = options
 
     def expand(self, template):
         """
         Return the string obtained by substitution on the template string `template`.
         """
         options = (
-            self.options | _cy.SubstituteOption.REPLACEMENT_ONLY | _cy.SubstituteOption.UNSET_EMPTY
+            self._options | _cy.SubstituteOption.REPLACEMENT_ONLY | _cy.SubstituteOption.UNSET_EMPTY
         )
         res, _ = _cy.substitute(
             self.re._pcre2_code,
