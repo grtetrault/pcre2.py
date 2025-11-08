@@ -20,9 +20,9 @@ jobs:
           submodules: recursive
 
       - uses: actions/setup-python@v6
-        name: Setup Python 3.9
+        name: Setup Python 3.14
         with:
-          python-version: "3.9"
+          python-version: "3.14"
 
       - name: Make sdist
         run: pipx run build --sdist
@@ -95,14 +95,14 @@ jobs:
           platforms: aarch64
 
       - name: Build wheels with CIBuildWheel
-        uses: pypa/cibuildwheel@v2.22.0
+        uses: pypa/cibuildwheel@v3.2.1
         env:
           CIBW_TEST_REQUIRES: pytest
           CIBW_TEST_COMMAND: pytest {project}/tests
           CIBW_ARCHS_LINUX: auto aarch64
           CIBW_ARCHS_MACOS: x86_64 arm64
           CIBW_BUILD: ${{ matrix.build }}
-          CIBW_SKIP: ${{ matrix.skip }}
+          CIBW_SKIP: cp3??t-*  # Disable free-threading builds on all platforms
 
       - name: Check with Twine
         run: pipx run twine check wheelhouse/*
