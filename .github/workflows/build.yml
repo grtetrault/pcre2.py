@@ -2,7 +2,7 @@ name: build
 
 on:
   push:
-    branches: [main]
+    branches: [main. arm64-runner]
   pull_request:
     branches: [main]
   release:
@@ -54,6 +54,10 @@ jobs:
             os: windows-latest
             platform: amd64
             build: cp*-win_amd64
+          - name: Windows ARM64
+            os: windows-11-arm
+            platform: arm64
+            build: cp*-win_arm64
           - name: macOS x86-64
             os: macos-latest
             platform: x86_64
