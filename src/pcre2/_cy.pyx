@@ -43,13 +43,15 @@ cdef class PCRE2Code:
 
 cdef class PCRE2MatchData:
     cdef pcre2_match_data_t *ptr
+    cdef public bint is_partial
 
     @staticmethod
-    cdef PCRE2MatchData from_ptr(pcre2_match_data_t *ptr):
+    cdef PCRE2MatchData from_ptr(pcre2_match_data_t *ptr, bint is_partial):
         """ Ownership of pointer is always taken by the new instance """
         cdef PCRE2MatchData match_data
         match_data = PCRE2MatchData.__new__(PCRE2MatchData)
         match_data.ptr = ptr
+        match_data.is_partial = is_partial
         return match_data
 
     def __init__(self, *args, **kwargs):
@@ -310,6 +312,8 @@ class MatchOption(IntEnum):
     ENDANCHORED = PCRE2_ENDANCHORED
     NOTEMPTY = PCRE2_NOTEMPTY
     NOTEMPTY_ATSTART = PCRE2_NOTEMPTY_ATSTART
+    PARTIAL_SOFT = PCRE2_PARTIAL_SOFT
+    PARTIAL_HARD = PCRE2_PARTIAL_HARD
 
 cdef pcre2_match_data_t * _pcre2_match_data_create_from_pattern(
     const pcre2_code_t *code, pcre2_general_context_t *gcontext
@@ -347,9 +351,10 @@ cdef PCRE2MatchData _match(
     rc = _pcre2_match(code.ptr, subj_sptr, byte_length, byte_offset, options, match_data_ptr, NULL)
     if rc == PCRE2_ERROR_NOMATCH:
         return None
-    raise_from_rc(rc)
+    elif rc != PCRE2_ERROR_PARTIAL:
+        raise_from_rc(rc)
 
-    return PCRE2MatchData.from_ptr(match_data_ptr)
+    return PCRE2MatchData.from_ptr(match_data_ptr, rc == PCRE2_ERROR_PARTIAL)
 
 def match(
     PCRE2Code code not None,
