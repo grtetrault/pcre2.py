@@ -51,7 +51,7 @@ jobs:
       matrix:
         include:
           - name: Windows AMD64
-            os: windows-latest
+            os: windows-2025
             platform: amd64
             build: cp*-win_amd64
           - name: Windows ARM64
@@ -59,23 +59,23 @@ jobs:
             platform: arm64
             build: cp*-win_arm64
           - name: macOS x86-64
-            os: macos-latest
+            os: macos-15-intel
             platform: x86_64
             build: "cp*-macosx_x86_64"
           - name: macOS ARM64
-            os: macos-latest
+            os: macos-15
             platform: arm64
             build: "cp*-macosx_arm64"
           - name: Ubuntu x86-64
-            os: ubuntu-latest
+            os: ubuntu-24.04
             platform: x86_64
             build: "cp*-manylinux_x86_64"
           - name: Ubuntu x86-64 with MUSL
-            os: ubuntu-latest
-            build: "cp*-musllinux_x86_64"
+            os: ubuntu-24.04
             platform: x86_64_musl
+            build: "cp*-musllinux_x86_64"
           - name: Ubuntu Aarch64
-            os: ubuntu-latest
+            os: ubuntu-24.04-arm
             platform: aarch64
             build: "cp*-manylinux_aarch64"
 
@@ -93,12 +93,6 @@ jobs:
         if: runner.os == 'Windows'
         shell: bash
         run: echo "CC=cl.exe" >> $GITHUB_ENV
-
-      - name: Set up QEMU
-        if: runner.os == 'Linux'
-        uses: docker/setup-qemu-action@v1.2.0
-        with:
-          platforms: aarch64
 
       - name: Build wheels with CIBuildWheel
         uses: pypa/cibuildwheel@v3.2.1
