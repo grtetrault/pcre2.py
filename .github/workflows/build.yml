@@ -75,7 +75,7 @@ jobs:
             build: "cp*-musllinux_x86_64"
             platform: x86_64_musl
           - name: Ubuntu Aarch64
-            os: ubuntu-latest
+            os: ubuntu-24.04-arm
             platform: aarch64
             build: "cp*-manylinux_aarch64"
 
@@ -93,12 +93,6 @@ jobs:
         if: runner.os == 'Windows'
         shell: bash
         run: echo "CC=cl.exe" >> $GITHUB_ENV
-
-      - name: Set up QEMU
-        if: runner.os == 'Linux'
-        uses: docker/setup-qemu-action@v1.2.0
-        with:
-          platforms: aarch64
 
       - name: Build wheels with CIBuildWheel
         uses: pypa/cibuildwheel@v3.2.1
