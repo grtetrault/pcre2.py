@@ -15,15 +15,15 @@ def get_long_desciption():
 
 
 skbuild.setup(
-    name = "pcre2",
-    version = "0.5.3",
-    description = "Python bindings for the PCRE2 regular expression library",
-    long_description = get_long_desciption(),
-    long_description_content_type = "text/markdown",
-    license = "BSD 3-Clause License",
-    author = "Garrett Tetrault",
-    url = "https://github.com/grtetrault/pcre2.py",
-    classifiers = [
+    name="pcre2",
+    version="0.5.3",
+    description="Python bindings for the PCRE2 regular expression library",
+    long_description=get_long_desciption(),
+    long_description_content_type="text/markdown",
+    license="BSD 3-Clause License",
+    author="Garrett Tetrault",
+    url="https://github.com/grtetrault/pcre2.py",
+    classifiers=[
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Developers",
         "License :: OSI Approved :: BSD License",
@@ -39,10 +39,10 @@ skbuild.setup(
         "Programming Language :: Python :: 3.14",
         "Operating System :: MacOS :: MacOS X",
         "Operating System :: POSIX :: Linux",
-        "Operating System :: Microsoft :: Windows"
+        "Operating System :: Microsoft :: Windows",
     ],
     include_package_data=True,
-    packages = setuptools.find_packages("src"),
-    package_dir = {"": "src"},
-    cmake_languages = "C",
+    packages=setuptools.find_packages("src"),
+    package_dir={"": "src"},
+    cmake_languages="C",
 )
