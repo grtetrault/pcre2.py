@@ -177,10 +177,9 @@ class CompileOption(IntFlag):
     UTF = PCRE2_UTF
 
     # Controls the interpretation of character values. If characters are ASCII, then (for example)
-    # '\w' does not match values outside the range 0-127. If the input pattern is a `str`, the
-    # default behaviour is UNICODE_PROPS (and this cannot be unset). If the input pattern is a
-    # `bytes`, the default is ASCII, but UNICODE_PROPS sets this to interpret character values
-    # according to Unicode.
+    # '\w' does not match values outside the range 0-127. If the input pattern is a compiled with
+    # the `UTF` option (whether `str` or `bytes`), the default behaviour is `UCP` enabled; this can
+    # be disabled by the `ASCII` flag in the Python wrapper
     UCP = PCRE2_UCP
 
 

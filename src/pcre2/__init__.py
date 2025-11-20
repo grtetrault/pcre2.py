@@ -48,7 +48,7 @@ PatternError = error = _cy.PatternError
 #                                                           Internal Utilities
 
 
-def _typegaurd_strings(s):
+def _typeguard_strings(s):
     if isinstance(s, str):
         return str(s)
     elif isinstance(s, (bytes, bytearray, memoryview)):
@@ -73,7 +73,7 @@ def compile(pattern, flags=0, jit=True):
         # If options differ, extract the underlying string for recompilation
         pattern = pattern.pattern
 
-    pattern = _typegaurd_strings(pattern)
+    pattern = _typeguard_strings(pattern)
     flags = RegexFlag(flags)
 
     # Handle ASCII flag, defined as the disabling of the UCP PCRE2 option
@@ -209,7 +209,7 @@ class Pattern:
             self.jit = True
 
     def _match(self, string, pos=0, endpos=maxsize, options=0):
-        string = _typegaurd_strings(string)
+        string = _typeguard_strings(string)
         pos = max(0, min(pos, len(string)))
         endpos = max(0, min(endpos, len(string)))
         match_data, match_byte_offset, match_options = _cy.match(
@@ -245,7 +245,7 @@ class Pattern:
         """
         Return an iterator of Match objects for each non-overlapping match in the string.
         """
-        string = _typegaurd_strings(string)
+        string = _typeguard_strings(string)
         pos = max(0, min(pos, len(string)))
         endpos = max(0, min(endpos, len(string)))
         for match_data, match_byte_offset, match_options in _cy.match_generator(
@@ -260,7 +260,7 @@ class Pattern:
         If one or more capture groups are present, return a list of groups for each match. Empty
         matches are included in the result.
         """
-        string = _typegaurd_strings(string)
+        string = _typeguard_strings(string)
         empty = type(string)()
         items = []
         for match in self.finditer(string, pos, endpos):
@@ -282,7 +282,7 @@ class Pattern:
         `maxsplit` is non-zero, at most `maxsplit` splits occur, and the remainder of `string` is
         returned as the final element of the list.
         """
-        string = _typegaurd_strings(string)
+        string = _typeguard_strings(string)
         if maxsplit < 0:
             return [string]
         parts = []
@@ -295,8 +295,8 @@ class Pattern:
         return parts
 
     def _suball(self, template, string):
-        template = _typegaurd_strings(template)
-        string = _typegaurd_strings(string)
+        template = _typeguard_strings(template)
+        string = _typeguard_strings(string)
         options = _cy.SubstituteOption.GLOBAL | _cy.SubstituteOption.UNSET_EMPTY
         byte_offset = 0
         return _cy.substitute(self._pcre2_code, template, string, byte_offset, options=options)
@@ -310,7 +310,7 @@ class Pattern:
         `repl` can be either a string or a callable. If it is a callable, it's passed the Match
         object and must return a replacement string to be used.
         """
-        string = _typegaurd_strings(string)
+        string = _typeguard_strings(string)
         if count < 0:
             return (string, 0)
 
@@ -335,7 +335,7 @@ class Pattern:
             return empty.join(parts), numsubs
         else:
             # Iterate through matches to get index of last match
-            repl = _typegaurd_strings(repl)
+            repl = _typeguard_strings(repl)
             end = 0
             for match in islice(self.finditer(string), count or None):
                 end = match.end()
@@ -380,7 +380,7 @@ class Match:
             f"span={self.span()}, match={repr(self.group())}>"
         )
 
-    def _groupgaurd(self, group):
+    def _groupguard(self, group):
         if isinstance(group, int):
             if not 0 <= group <= self.re.groups:
                 raise IndexError("No such group")
@@ -399,7 +399,7 @@ class Match:
         """
         Return the string obtained by substitution on the template string `template`.
         """
-        template = _typegaurd_strings(template)
+        template = _typeguard_strings(template)
         options = (
             self._options | _cy.SubstituteOption.REPLACEMENT_ONLY | _cy.SubstituteOption.UNSET_EMPTY
         )
@@ -419,11 +419,11 @@ class Match:
 
         If `group` did not contribute to the match, `(-1, -1)` is returned.
         """
-        group_number = self._groupgaurd(group)
+        group_number = self._groupguard(group)
         return _cy.substring_span_bynumber(self._pcre2_match_data, self.string, group_number)
 
     def __getitem__(self, group):
-        group_number = self._groupgaurd(group)
+        group_number = self._groupguard(group)
         return _cy.substring_bynumber(self._pcre2_match_data, self.string, group_number)
 
     def group(self, *groups):
