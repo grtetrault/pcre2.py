@@ -74,7 +74,7 @@ if __name__ == "__main__":
 
             time_match = pcre2.match(
                 r"\s*({0})\sreal\s*({0})\suser\s*({0})\ssys".format(r"[0-9]+\.[0-9]+").encode(),
-                out.stderr
+                out.stderr,
             )
             cur_stats = float(time_match[1]), float(time_match[2]), float(time_match[3])
             total_stats = elem_add(total_stats, cur_stats)
@@ -86,7 +86,5 @@ if __name__ == "__main__":
             f"| {NUM_RUNS:8} | {total_stats[0]:8.3f} "
             f"| {avg_stats[0]:8.3f} | {avg_stats[1]:8.3f} | {avg_stats[2]:8.3f} |\n"
         )
-    results += (
-        "+-------------------+----------+----------+----------+----------+----------+\n"
-    )
+    results += "+-------------------+----------+----------+----------+----------+----------+\n"
     print(results)

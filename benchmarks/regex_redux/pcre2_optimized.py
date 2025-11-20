@@ -53,18 +53,18 @@ def main():
         (b"tHa[Nt]", b"<4>"),
         (b"aND|caN|Ha[DS]|WaS", b"<3>"),
         (b"a[NSt]|BY", b"<2>"),
-        (b"<[^>]*>",b"|"),
+        (b"<[^>]*>", b"|"),
         (b"\\|[^|][^|]*\\|", b"-"),
     ]
 
     # Kick off sequential substitutions in the background.
-    result = mp.Manager().Value(str, "")
+    result = mp.Manager().Value(bytes, b"")
     process = mp.Process(target=seq_subs, args=(data, subs, result))
     process.start()
 
     # Run match counts in parallel with substitutions.
     pool = mp.Pool(initializer=init_pool, initargs=(data,))
-    for patn, n in pool.imap(n_matches, patns, chunksize=3):
+    for patn, n in pool.map(n_matches, patns):
         print(patn, n)
     pool.close()
 

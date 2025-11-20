@@ -1,11 +1,13 @@
 from . import _cy
 
+from enum import auto, IntFlag
+import operator
 from itertools import islice
-from functools import lru_cache
-
+from functools import lru_cache, reduce
+from types import MappingProxyType
 from sys import maxsize
 
-# The below implementation uses as a base that of Google's RE2 Python bindings:
+# The below implementation uses as a base that of Google`s RE2 Python bindings:
 # https://github.com/google/re2/tree/main/python
 
 
@@ -16,23 +18,69 @@ __version__ = "0.5.3"
 __libpcre2_version__ = _cy.__libpcre2_version__
 
 
-NOFLAG = 0
-IGNORECASE = I = _cy.CompileOption.IGNORECASE
-UNICODE = U = _cy.CompileOption.UNICODE
-MULTILINE = M = _cy.CompileOption.MULTILINE
-DOTALL = S = _cy.CompileOption.DOTALL
-VERBOSE = X = _cy.CompileOption.VERBOSE
+class RegexFlag(IntFlag):
+    # Flags either enable (True) or disable (False) PCRE2 options
+    NOFLAG = 0
+    IGNORECASE = _cy.CompileOption.CASELESS  # Ignore case
+    UNICODE = _cy.CompileOption.UTF  # Assume unicode "locale"
+    MULTILINE = _cy.CompileOption.MULTILINE  # Make anchors look for newline
+    DOTALL = _cy.CompileOption.DOTALL  # Make dot match newline
+    VERBOSE = _cy.CompileOption.EXTENDED  # Ignore whitespace and comments
+
+    # No corresponding flag in PCRE2, but is the opposite of `_cy.CompileOption.UCP`
+    ASCII = auto()  # ASCII-only matching for character classes
+
+
+NOFLAG = RegexFlag.NOFLAG
+ASCII = A = RegexFlag.ASCII
+IGNORECASE = I = RegexFlag.IGNORECASE
+UNICODE = U = RegexFlag.UNICODE
+MULTILINE = M = RegexFlag.MULTILINE
+DOTALL = S = RegexFlag.DOTALL
+VERBOSE = X = RegexFlag.VERBOSE
+
+
+LibraryError = _cy.LibraryError
+PatternError = error = _cy.PatternError
 
 
 # ============================================================================
-#                                                            Top-Level Methods
+#                                                           Internal Utilities
+
+
+def _typeguard_strings(s):
+    if isinstance(s, str):
+        return str(s)
+    elif isinstance(s, (bytes, bytearray, memoryview)):
+        return bytes(s)
+    raise TypeError(f"Cannot process type {s}")
+
+
+# ============================================================================
+#                                                          Top-Level Functions
 
 
 def compile(pattern, flags=0, jit=True):
     """
     Compile a regular expression pattern, returning a Pattern object.
     """
-    pcre2_code = _cy.compile(pattern, flags)
+    # Avoid recompilation if the pattern is already compiled with no option changes
+    if isinstance(pattern, Pattern):
+        if not flags == 0:
+            raise ValueError("Cannot process flags argument with a compiled pattern")
+        if pattern.jit == jit:
+            return pattern
+        # If options differ, extract the underlying string for recompilation
+        pattern = pattern.pattern
+
+    pattern = _typeguard_strings(pattern)
+    flags = RegexFlag(flags)
+
+    # Handle ASCII flag, defined as the disabling of the UCP PCRE2 option
+    options = flags & ~RegexFlag.ASCII
+    disabled_options = _cy.CompileOption.UCP if flags & RegexFlag.ASCII else 0
+
+    pcre2_code = _cy.compile(pattern, options, disabled_options)
     if jit:
         _cy.jit_compile(pcre2_code)
     return Pattern(pcre2_code, pattern, flags, jit)
@@ -129,6 +177,18 @@ class Pattern:
         self.flags = flags
         self.jit = jit
 
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        del state["_pcre2_code"]  # Remove the unpicklable pointer
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        # Note that patterns are recompiled - and optionally JIT compiled - when unpickling
+        self._pcre2_code = _cy.compile(self.pattern, self.flags)
+        if self.jit:
+            _cy.jit_compile(self._pcre2_code)
+
     @property
     @lru_cache(1)
     def groups(self):
@@ -137,7 +197,8 @@ class Pattern:
     @property
     @lru_cache(1)
     def groupindex(self):
-        return _cy.pattern_name_dict(self._pcre2_code)
+        groupindex = _cy.pattern_name_dict(self._pcre2_code)
+        return MappingProxyType(groupindex)
 
     def jit_compile(self):
         """
@@ -148,10 +209,15 @@ class Pattern:
             self.jit = True
 
     def _match(self, string, pos=0, endpos=maxsize, options=0):
+        string = _typeguard_strings(string)
         pos = max(0, min(pos, len(string)))
         endpos = max(0, min(endpos, len(string)))
-        match_data, match_byte_offset, match_options = _cy.match(self._pcre2_code, string, endpos, pos, options)
-        return Match(match_data, self, string, pos, endpos, match_byte_offset, match_options) if match_data else None
+        match_data, match_byte_offset, match_options = _cy.match(
+            self._pcre2_code, string, endpos, pos, options
+        )
+        if match_data:
+            return Match(match_data, self, string, pos, endpos, match_byte_offset, match_options)
+        return None
 
     def search(self, string, pos=0, endpos=maxsize):
         """
@@ -179,10 +245,11 @@ class Pattern:
         """
         Return an iterator of Match objects for each non-overlapping match in the string.
         """
+        string = _typeguard_strings(string)
         pos = max(0, min(pos, len(string)))
         endpos = max(0, min(endpos, len(string)))
-        for match_data, match_byte_offset, match_options in (
-            _cy.match_generator(self._pcre2_code, string, endpos, pos)
+        for match_data, match_byte_offset, match_options in _cy.match_generator(
+            self._pcre2_code, string, endpos, pos
         ):
             yield Match(match_data, self, string, pos, endpos, match_byte_offset, match_options)
 
@@ -193,6 +260,7 @@ class Pattern:
         If one or more capture groups are present, return a list of groups for each match. Empty
         matches are included in the result.
         """
+        string = _typeguard_strings(string)
         empty = type(string)()
         items = []
         for match in self.finditer(string, pos, endpos):
@@ -214,6 +282,7 @@ class Pattern:
         `maxsplit` is non-zero, at most `maxsplit` splits occur, and the remainder of `string` is
         returned as the final element of the list.
         """
+        string = _typeguard_strings(string)
         if maxsplit < 0:
             return [string]
         parts = []
@@ -226,6 +295,8 @@ class Pattern:
         return parts
 
     def _suball(self, template, string):
+        template = _typeguard_strings(template)
+        string = _typeguard_strings(string)
         options = _cy.SubstituteOption.GLOBAL | _cy.SubstituteOption.UNSET_EMPTY
         byte_offset = 0
         return _cy.substitute(self._pcre2_code, template, string, byte_offset, options=options)
@@ -239,6 +310,7 @@ class Pattern:
         `repl` can be either a string or a callable. If it is a callable, it's passed the Match
         object and must return a replacement string to be used.
         """
+        string = _typeguard_strings(string)
         if count < 0:
             return (string, 0)
 
@@ -263,6 +335,7 @@ class Pattern:
             return empty.join(parts), numsubs
         else:
             # Iterate through matches to get index of last match
+            repl = _typeguard_strings(repl)
             end = 0
             for match in islice(self.finditer(string), count or None):
                 end = match.end()
@@ -301,10 +374,32 @@ class Match:
         self._byte_offset = byte_offset
         self._options = options
 
+    def __repr__(self):
+        return (
+            f"<{self.__class__.__module__}.{self.__class__.__qualname__} object; "
+            f"span={self.span()}, match={repr(self.group())}>"
+        )
+
+    def _groupguard(self, group):
+        if isinstance(group, int):
+            if not 0 <= group <= self.re.groups:
+                raise IndexError("No such group")
+            group_number = group
+        elif isinstance(group, str):
+            if group not in self.re.groupindex:
+                raise IndexError("no such group")
+            group_number = self.re.groupindex[group]
+        elif hasattr(group, "__index__"):
+            group_number = int(group.__index__())
+        else:
+            raise IndexError("No such group")
+        return group_number
+
     def expand(self, template):
         """
         Return the string obtained by substitution on the template string `template`.
         """
+        template = _typeguard_strings(template)
         options = (
             self._options | _cy.SubstituteOption.REPLACEMENT_ONLY | _cy.SubstituteOption.UNSET_EMPTY
         )
@@ -324,24 +419,12 @@ class Match:
 
         If `group` did not contribute to the match, `(-1, -1)` is returned.
         """
-        if not isinstance(group, int):
-            try:
-                group = self.re.groupindex[group]
-            except KeyError:
-                raise IndexError("Invalid group name")
-        if not 0 <= group <= self.re.groups:
-            raise IndexError("Invalid group index")
-        return _cy.substring_span_bynumber(self._pcre2_match_data, self.string, group)
+        group_number = self._groupguard(group)
+        return _cy.substring_span_bynumber(self._pcre2_match_data, self.string, group_number)
 
     def __getitem__(self, group):
-        if not isinstance(group, int):
-            try:
-                group = self.re.groupindex[group]
-            except KeyError:
-                raise IndexError("Invalid group name")
-        if not 0 <= group <= self.re.groups:
-            raise IndexError("Invalid group index")
-        return _cy.substring_bynumber(self._pcre2_match_data, self.string, group)
+        group_number = self._groupguard(group)
+        return _cy.substring_bynumber(self._pcre2_match_data, self.string, group_number)
 
     def group(self, *groups):
         """
