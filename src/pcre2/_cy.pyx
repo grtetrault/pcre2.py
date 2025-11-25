@@ -217,8 +217,10 @@ def compile(object pattern, uint32_t options = 0, disabled_options = 0):
     if code is NULL:
         if PyUnicode_Check(pattern):
             errpos = idx_byte_to_char(patn_sptr, errpos)
-        # PCRE2 puts errors after the bad character, so error positions may be after the end of the
-        # string
+
+        # For some errors (e.g., unclosed groups) the whole pattern must be scanned and the error
+        # position returned is the length of the string. This means that the total range of error
+        # offset values is [0, length] inclusive
         raise PatternError(rc, errpos)
 
     return PCRE2Code.from_ptr(code, PyUnicode_Check(pattern))
