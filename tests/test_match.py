@@ -15,9 +15,7 @@ test_data_match_bounds = [
 ]
 
 
-@pytest.mark.parametrize(
-    "pattern,subject,flags,pos,endpos,group,start,end", test_data_match_bounds
-)
+@pytest.mark.parametrize("pattern,subject,flags,pos,endpos,group,start,end", test_data_match_bounds)
 def test_match_bounds(pattern, subject, flags, pos, endpos, group, start, end):
     p = pcre2.compile(pattern, flags=flags)
     kwargs = {}
@@ -39,9 +37,7 @@ test_data_match_substring = [
 ]
 
 
-@pytest.mark.parametrize(
-    "pattern,subject,flags,pos,substring", test_data_match_substring
-)
+@pytest.mark.parametrize("pattern,subject,flags,pos,substring", test_data_match_substring)
 def test_match_substring(pattern, subject, flags, pos, substring):
     p = pcre2.compile(pattern, flags=flags)
     m = p.match(subject, pos=pos)
@@ -55,9 +51,7 @@ test_data_match_expand = [
 ]
 
 
-@pytest.mark.parametrize(
-    "pattern,replacement,subject,flags,pos,result", test_data_match_expand
-)
+@pytest.mark.parametrize("pattern,replacement,subject,flags,pos,result", test_data_match_expand)
 def test_match_expand(pattern, replacement, subject, flags, pos, result):
     p = pcre2.compile(pattern, flags=flags)
     m = p.search(subject, pos=pos)

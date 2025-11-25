@@ -24,12 +24,10 @@ def test_pattern_compile_success(pattern, flags, return_code):
         p = pcre2.compile(pattern, flags=flags, jit=False)
         rc = "SUCCESS"
         assert not p.jit
-    except LibraryError as e:
-        print(e)
-        if str(e).find("Compilation failed") >= 0:
-            rc = "COMPILE_ERROR"
-        else:
-            rc = "LIB_ERROR"
+    except pcre2.PatternError:
+        rc = "COMPILE_ERROR"
+    except pcre2.LibraryError:
+        rc = "LIB_ERROR"
     assert rc == return_code
 
 
@@ -39,12 +37,10 @@ def test_pattern_jit_compile_success(pattern, flags, return_code):
         p = pcre2.compile(pattern, flags=flags, jit=True)
         rc = "SUCCESS"
         assert p.jit
-    except LibraryError as e:
-        print(e)
-        if str(e).find("Compilation failed") >= 0:
-            rc = "COMPILE_ERROR"
-        else:
-            rc = "LIB_ERROR"
+    except pcre2.PatternError:
+        rc = "COMPILE_ERROR"
+    except pcre2.LibraryError:
+        rc = "LIB_ERROR"
     assert rc == return_code
 
 
@@ -123,10 +119,7 @@ def test_pattern_substitute(pattern, replacement, subject, count, result):
 
 def test_pattern_findall():
     p = pcre2.compile(r"(\w+)=(\d+)")
-    assert p.findall("set width=20 and height=10") == [
-        ("width", "20"),
-        ("height", "10"),
-    ]
+    assert p.findall("set width=20 and height=10") == [("width", "20"), ("height", "10")]
     s = bytes(range(128)).decode()
     p2 = pcre2.compile(r"[0-9--1]")
     assert p2.findall(s) == list("-./0123456789")
@@ -214,7 +207,7 @@ def test_pattern_jit_findall():
 
 
 def test_pattern_split():
-    pattern = "[\u002E\u3002\uFF0E\uFF61]"
+    pattern = "[\u002e\u3002\uff0e\uff61]"
     assert pcre2.compile(pattern).split("a.b.c") == ["a", "b", "c"]
 
 
