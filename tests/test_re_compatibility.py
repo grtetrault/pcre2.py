@@ -178,7 +178,7 @@ def test_qualified_re_sub():
     with pytest.raises(TypeError, match=r"sub\(\) got multiple values for argument 'flags'"):
         re.sub("a", "b", "aaaaa", 1, 0, flags=0)
     with pytest.raises(
-        TypeError, match=r"sub\(\) takes from 3 to 6 positional arguments but 7 were given"
+        TypeError, match=r"sub\(\) takes from 3 to 5 positional arguments but 7 were given"
     ):
         re.sub("a", "b", "aaaaa", 1, 0, False, 0)
 

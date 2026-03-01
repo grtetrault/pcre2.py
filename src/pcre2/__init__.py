@@ -1,9 +1,8 @@
 from . import _cy
 
-from enum import auto, IntFlag
-import operator
+from enum import auto, IntEnum, IntFlag
 from itertools import islice
-from functools import lru_cache, reduce
+from functools import lru_cache
 from types import MappingProxyType
 from sys import maxsize
 
@@ -18,6 +17,15 @@ __version__ = "0.6.0"
 __libpcre2_version__ = _cy.__libpcre2_version__
 
 
+_EMPTY_MATCH_CONTEXT = _cy.create_match_context()
+
+
+class CalloutReturn(IntEnum):
+    PASS = _cy.CalloutFunctionReturn.PASS
+    FAIL = _cy.CalloutFunctionReturn.FAIL
+    ABORT = _cy.CalloutFunctionReturn.ABORT
+
+
 class RegexFlag(IntFlag):
     # Flags either enable (True) or disable (False) PCRE2 options
     NOFLAG = 0
@@ -26,6 +34,11 @@ class RegexFlag(IntFlag):
     MULTILINE = _cy.CompileOption.MULTILINE  # Make anchors look for newline
     DOTALL = _cy.CompileOption.DOTALL  # Make dot match newline
     VERBOSE = _cy.CompileOption.EXTENDED  # Ignore whitespace and comments
+    NOOPT = (
+        _cy.CompileOption.NO_AUTO_POSSESS
+        | _cy.CompileOption.NO_START_OPTIMIZE
+        | _cy.CompileOption.NO_DOTSTAR_ANCHOR
+    )
 
     # No corresponding flag in PCRE2, but is the opposite of `_cy.CompileOption.UCP`
     ASCII = auto()  # ASCII-only matching for character classes
@@ -38,6 +51,7 @@ UNICODE = U = RegexFlag.UNICODE
 MULTILINE = M = RegexFlag.MULTILINE
 DOTALL = S = RegexFlag.DOTALL
 VERBOSE = X = RegexFlag.VERBOSE
+NOOPT = O0 = RegexFlag.NOOPT
 
 
 LibraryError = _cy.LibraryError
@@ -60,7 +74,7 @@ def _typeguard_strings(s):
 #                                                          Top-Level Functions
 
 
-def compile(pattern, flags=0, jit=True):
+def compile(pattern, flags=0, *, jit=True, callout=None):
     """
     Compile a regular expression pattern, returning a Pattern object.
     """
@@ -83,50 +97,50 @@ def compile(pattern, flags=0, jit=True):
     pcre2_code = _cy.compile(pattern, options, disabled_options)
     if jit:
         _cy.jit_compile(pcre2_code)
-    return Pattern(pcre2_code, pattern, flags, jit)
+    return Pattern(pcre2_code, pattern, flags, jit, callout)
 
 
-def search(pattern, string, flags=0, jit=True):
+def search(pattern, string, flags=0, *, jit=True, callout=None):
     """
     Scan through `string` looking for a match to the pattern, returning a Match object, or None if
     no match was found.
     """
-    return compile(pattern, flags, jit).search(string)
+    return compile(pattern, flags, jit=jit, callout=callout).search(string)
 
 
-def match(pattern, string, flags=0, jit=True):
+def match(pattern, string, flags=0, *, jit=True, callout=None):
     """
     Match the pattern at the start of `string`, returning a Match object, or None if no match was
     found.
     """
-    return compile(pattern, flags, jit).match(string)
+    return compile(pattern, flags, jit=jit, callout=callout).match(string)
 
 
-def fullmatch(pattern, string, flags=0, jit=True):
+def fullmatch(pattern, string, flags=0, *, jit=True, callout=None):
     """
     Match the pattern to all of `string`, returning a Match object, or None if no match was found.
     """
-    return compile(pattern, flags, jit).fullmatch(string)
+    return compile(pattern, flags, jit=jit, callout=callout).fullmatch(string)
 
 
-def finditer(pattern, string, flags=0, jit=True):
+def finditer(pattern, string, flags=0, *, jit=True, callout=None):
     """
     Return an iterator of Match objects for each non-overlapping match in the string.
     """
-    return compile(pattern, flags, jit).finditer(string)
+    return compile(pattern, flags, jit=jit, callout=callout).finditer(string)
 
 
-def findall(pattern, string, flags=0, jit=True):
+def findall(pattern, string, flags=0, *, jit=True, callout=None):
     """
     Return a list of all non-overlapping matches in `string`.
 
     If one or more capture groups are present, return a list of groups for each match. Empty
     matches are included in the result.
     """
-    return compile(pattern, flags, jit).findall(string)
+    return compile(pattern, flags, jit=jit, callout=callout).findall(string)
 
 
-def split(pattern, string, maxsplit=0, flags=0, jit=True):
+def split(pattern, string, maxsplit=0, flags=0, *, jit=True, callout=None):
     """
     Split the source string by the occurrences of the pattern, returning a list containing the
     resulting substrings.
@@ -135,10 +149,10 @@ def split(pattern, string, maxsplit=0, flags=0, jit=True):
     `maxsplit` is non-zero, at most `maxsplit` splits occur, and the remainder of `string` is
     returned as the final element of the list.
     """
-    return compile(pattern, flags, jit).split(string, maxsplit)
+    return compile(pattern, flags, jit=jit, callout=callout).split(string, maxsplit)
 
 
-def subn(pattern, repl, string, count=0, flags=0, jit=True):
+def subn(pattern, repl, string, count=0, flags=0, *, jit=True, callout=None):
     """
     Return a tuple containing `(res, number)`. `res` is the string obtained by replacing the
     leftmost non-overlapping occurrences of the pattern in `string` by the replacement `repl`.
@@ -147,10 +161,10 @@ def subn(pattern, repl, string, count=0, flags=0, jit=True):
     `repl` can be either a string or a callable. If it is a callable, it's passed the Match object
     and must return a replacement string to be used.
     """
-    return compile(pattern, flags, jit).subn(repl, string, count)
+    return compile(pattern, flags, jit=jit, callout=callout).subn(repl, string, count)
 
 
-def sub(pattern, repl, string, count=0, flags=0, jit=True):
+def sub(pattern, repl, string, count=0, flags=0, *, jit=True, callout=None):
     """
     Return the string obtained by replacing the leftmost non-overlapping occurrences of the pattern
     in `string` by the replacement `repl`.
@@ -158,7 +172,7 @@ def sub(pattern, repl, string, count=0, flags=0, jit=True):
     `repl` can be either a string or a callable. If it is a callable, it's passed the Match object
     and must return a replacement string to be used.
     """
-    return compile(pattern, flags, jit).sub(repl, string, count)
+    return compile(pattern, flags, jit=jit, callout=callout).sub(repl, string, count)
 
 
 # ============================================================================
@@ -166,7 +180,7 @@ def sub(pattern, repl, string, count=0, flags=0, jit=True):
 
 
 class Pattern:
-    def __init__(self, pcre2_code, pattern, flags, jit):
+    def __init__(self, pcre2_code, pattern, flags, jit, callout):
         if not isinstance(pcre2_code, _cy.PCRE2Code):
             raise ValueError(
                 "PCRE2 code must be of type `_cy.PCRE2Code`. It is not recommended to instantiate "
@@ -176,6 +190,7 @@ class Pattern:
         self.pattern = pattern
         self.flags = flags
         self.jit = jit
+        self.callout = callout
 
     def __getstate__(self):
         state = self.__dict__.copy()
@@ -208,12 +223,28 @@ class Pattern:
             _cy.jit_compile(self._pcre2_code)
             self.jit = True
 
+    def _get_match_context(self, string):
+        # Wrap the callout function so userland only interacts with python object, not Cython
+        # extension type
+        if self.callout is None:
+            return _EMPTY_MATCH_CONTEXT
+        elif callable(self.callout):
+
+            def callout_wrapped(pcre2_callout_block):
+                callout_block = CalloutBlock(pcre2_callout_block, self, string)
+                return self.callout(callout_block)
+
+            match_context = _cy.create_match_context(callout_function=callout_wrapped)
+            return match_context
+        raise ValueError("Callout must either be unspecified or a callable")
+
     def _match(self, string, pos=0, endpos=maxsize, options=0):
         string = _typeguard_strings(string)
         pos = max(0, min(pos, len(string)))
         endpos = max(0, min(endpos, len(string)))
+        match_context = self._get_match_context(string)
         match_data, match_byte_offset, match_options = _cy.match(
-            self._pcre2_code, string, endpos, pos, options
+            self._pcre2_code, string, endpos, pos, match_context, options
         )
         if match_data:
             return Match(match_data, self, string, pos, endpos, match_byte_offset, match_options)
@@ -248,8 +279,9 @@ class Pattern:
         string = _typeguard_strings(string)
         pos = max(0, min(pos, len(string)))
         endpos = max(0, min(endpos, len(string)))
+        match_context = self._get_match_context(string)
         for match_data, match_byte_offset, match_options in _cy.match_generator(
-            self._pcre2_code, string, endpos, pos
+            self._pcre2_code, string, endpos, pos, match_context
         ):
             yield Match(match_data, self, string, pos, endpos, match_byte_offset, match_options)
 
@@ -315,7 +347,7 @@ class Pattern:
             return (string, 0)
 
         # Short circuit for global substitute
-        if count == 0 and not callable(repl):
+        if count == 0 and not callable(repl) and not self.callout:
             return self._suball(repl, string)
 
         parts = []
@@ -360,6 +392,8 @@ class Pattern:
 
 
 class Match:
+    __slots__ = ("_pcre2_match_data", "re", "string", "pos", "endpos", "_byte_offset", "_options")
+
     def __init__(self, pcre2_match_data, re, string, pos, endpos, byte_offset, options):
         if not isinstance(pcre2_match_data, _cy.PCRE2MatchData):
             raise ValueError(
@@ -420,11 +454,11 @@ class Match:
         If `group` did not contribute to the match, `(-1, -1)` is returned.
         """
         group_number = self._groupguard(group)
-        return _cy.substring_span_bynumber(self._pcre2_match_data, self.string, group_number)
+        return _cy.match_substring_span_bynumber(self._pcre2_match_data, self.string, group_number)
 
     def __getitem__(self, group):
         group_number = self._groupguard(group)
-        return _cy.substring_bynumber(self._pcre2_match_data, self.string, group_number)
+        return _cy.match_substring_bynumber(self._pcre2_match_data, self.string, group_number)
 
     def group(self, *groups):
         """
@@ -442,6 +476,135 @@ class Match:
     def groups(self, default=None):
         """
         Return a tuple containing all the subgroups of the match.
+        """
+        items = []
+        for group in range(1, self.re.groups + 1):
+            item = self.__getitem__(group)
+            items.append(default if item is None else item)
+        return tuple(items)
+
+    def groupdict(self, default=None):
+        """
+        Return a dictionary mapping subgroup name to group number for all the named subgroups.
+        """
+        items = []
+        for group, index in self.re.groupindex.items():
+            item = self.__getitem__(index)
+            items.append((group, default) if item is None else (group, item))
+        return dict(items)
+
+    def start(self, group=0):
+        """
+        Return the start index of the substring matched by `group`.
+        """
+        return self.span(group)[0]
+
+    def end(self, group=0):
+        """
+        Return the end index of the substring matched by `group`.
+        """
+        return self.span(group)[1]
+
+    @property
+    @lru_cache(1)
+    def lastindex(self):
+        max_end = -1
+        max_group = None
+        # We look for the rightmost right parenthesis by keeping the first group that ends at
+        # max_end because that is the leftmost/outermost group when there are nested groups!
+        for group in range(1, self.re.groups + 1):
+            end = self.end(group)
+            if max_end < end:
+                max_end = end
+                max_group = group
+        return max_group
+
+    @property
+    @lru_cache(1)
+    def lastgroup(self):
+        max_group = self.lastindex
+        if not max_group:
+            return None
+        for group, index in self.re.groupindex.items():
+            if max_group == index:
+                return group
+        return None
+
+
+# ============================================================================
+#                                                         Callout Block Object
+
+
+class CalloutBlock:
+    def __init__(self, pcre2_callout_block, re, string):
+        if not isinstance(pcre2_callout_block, _cy.PCRE2CalloutBlock):
+            raise ValueError(
+                "PCRE2 callout block data must be of type `_cy.PCRE2CalloutBlock`. It is not"
+                "recommended to instantiate `CalloutBlock` objects directly."
+            )
+        self._pcre2_callout_block = pcre2_callout_block
+        self.re = re
+        self.string = string
+
+    def __repr__(self):
+        return (
+            f"<{self.__class__.__module__}.{self.__class__.__qualname__} object; "
+            f"value={self.value}, span={self.span()}, match={repr(self.group())}>"
+        )
+
+    @property
+    @lru_cache(1)
+    def value(self):
+        return _cy.callout_block_get_value(self._pcre2_callout_block)
+
+    def _groupguard(self, group):
+        if isinstance(group, int):
+            if not 0 <= group <= self.re.groups:
+                raise IndexError("No such group")
+            group_number = group
+        elif isinstance(group, str):
+            if group not in self.re.groupindex:
+                raise IndexError("no such group")
+            group_number = self.re.groupindex[group]
+        elif hasattr(group, "__index__"):
+            group_number = int(group.__index__())
+        else:
+            raise IndexError("No such group")
+        return group_number
+
+    def span(self, group=0):
+        """
+        Return the start and end of `group` as the tuple `(start, end)`.
+
+        If `group` did not contribute to the match, `(-1, -1)` is returned.
+        """
+        group_number = self._groupguard(group)
+        return _cy.callout_block_substring_span_bynumber(
+            self._pcre2_callout_block, self.string, group_number
+        )
+
+    def __getitem__(self, group):
+        group_number = self._groupguard(group)
+        return _cy.callout_block_substring_bynumber(
+            self._pcre2_callout_block, self.string, group_number
+        )
+
+    def group(self, *groups):
+        """
+        Returns one or more subgroups of the callout block.
+
+        If there is a single argument, the result is a single string. If there are multiple
+        arguments, the result is a tuple with one item per argument. Without arguments, the whole
+        string matched in the callout block is returned.
+        """
+        if not groups:
+            groups = (0,)
+        items = map(self.__getitem__, groups)
+        return next(items) if len(groups) == 1 else tuple(items)
+
+    def groups(self, default=None):
+        """
+        Return a tuple containing all the subgroups of the callout block.
         """
         items = []
         for group in range(1, self.re.groups + 1):
