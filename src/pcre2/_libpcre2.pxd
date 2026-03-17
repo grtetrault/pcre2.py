@@ -7,6 +7,8 @@ cdef extern from "pcre2.h":
     cdef unsigned int PCRE2_MAJOR
     cdef unsigned int PCRE2_MINOR
 
+    cdef unsigned int PCRE2_UNSET
+
     # The following option bits can be passed to pcre2_compile(),
     # pcre2_match(), or pcre2_dfa_match(). PCRE2_NO_UTF_CHECK affects only the
     # function to which it is passed. Put these bits at the most significant
@@ -344,6 +346,9 @@ cdef extern from "pcre2.h":
     cdef int PCRE2_CONFIG_COMPILED_WIDTHS
     cdef int PCRE2_CONFIG_TABLES_LENGTH
 
+    # Basic string definition. Note that this assumes PCRE2 in compiled to
+    # support 8-bit strings.
+    ctypedef const uint8_t *pcre2_sptr_t "PCRE2_SPTR"
 
     # Opaque handles for PCRE2 defined structs.
     ctypedef struct pcre2_code_t "pcre2_code":
@@ -356,10 +361,23 @@ cdef extern from "pcre2.h":
         pass
     ctypedef struct pcre2_match_context_t "pcre2_match_context":
         pass
-
-    # Basic string definition. Note that this assumes PCRE2 in compiled to
-    # support 8-bit strings.
-    ctypedef const uint8_t *pcre2_sptr_t "PCRE2_SPTR"
+    ctypedef struct pcre2_callout_block_t "pcre2_callout_block":
+        uint32_t     version
+        uint32_t     callout_number
+        uint32_t     capture_top
+        uint32_t     capture_last
+        uint32_t     callout_flags
+        size_t      *offset_vector
+        pcre2_sptr_t mark
+        pcre2_sptr_t subject
+        size_t       subject_length
+        size_t       start_match
+        size_t       current_position
+        size_t       pattern_position
+        size_t       next_item_length
+        size_t       callout_string_offset
+        size_t       callout_string_length
+        pcre2_sptr_t callout_string
 
     # Error handling functions.
     int pcre2_get_error_message(
@@ -396,6 +414,17 @@ cdef extern from "pcre2.h":
     int pcre2_substring_number_from_name(
         const pcre2_code_t *code,
         pcre2_sptr_t name
+    )
+
+    # Match context
+    pcre2_match_context_t * pcre2_match_context_create(pcre2_general_context_t *gcontext)
+
+    void pcre2_match_context_free(pcre2_match_context_t *mcontext)
+
+    int pcre2_set_callout(
+        pcre2_match_context_t *mcontext,
+        int (*callout_function)(pcre2_callout_block_t *, void *) except *,
+        void *callout_data
     )
     
     # Matching and match data functions.

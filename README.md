@@ -85,6 +85,27 @@ foo
 buzz
 ```
 
+Callout functions may be provided and will be called during matching whenever a `(?C<arg>)` is
+encountered.
+Callouts can control whether a match continues without impact, fails and begins looking for the
+next match, or aborts the matching job entirely.
+Functions are expected to take a `CalloutBlock` and return a `CalloutReturn`, e.g.,
+```python
+>>> def callout(callout_block: CalloutBlock):
+...     print(callout_block.value + callout_block[0])
+...     return CalloutReturn.PASS
+...
+>>> pcre2.search(r"\w+(?C'temp: ')(*FAIL)", "abc", flags=pcre2.O0, callout=callout)
+temp: abc
+temp: ab
+temp: a
+temp: bc
+temp: b
+temp: c
+```
+
+For a more in depth discussion on PCRE2 callouts - and on this particular use of callouts - read [this post from Rex Egg](https://www.rexegg.com/pcre-callouts.php).
+
 ## Performance
 
 PCRE2 provides a fast regular expression library, particularly with JIT compilation enabled.
@@ -92,11 +113,11 @@ Below are the `regex-redux` benchmark results included in this repository,
 
 | Script              | Number of runs | Total time | Real time  | User time   | System time   |
 | ------------------- | -------------- | ---------- | ---------- | ----------- | ------------- |
-| baseline.py         |             10 |      3.230 |      0.323 |       0.020 |         0.100 |
-| re_vanilla.py       |             10 |     51.090 |      5.109 |      11.375 |         0.530 |
-| pcre2_vanilla.py    |             10 |     21.980 |      2.198 |       3.154 |         0.483 |
-| pcre2_optimized.py  |             10 |     14.860 |      1.486 |       2.520 |         0.548 |
-| cffi_optimized.py   |             10 |     14.130 |      1.413 |       3.111 |         0.411 |
+| baseline.py         |             10 |      3.000 |      0.300 |       0.020 |         0.110 |
+| re_vanilla.py       |             10 |     49.650 |      4.965 |      10.582 |         0.571 |
+| pcre2_vanilla.py    |             10 |     19.770 |      1.977 |       3.375 |         0.481 |
+| pcre2_optimized.py  |             10 |     14.960 |      1.496 |       3.546 |         0.590 |
+| cffi_optimized.py   |             10 |     13.350 |      1.335 |       3.930 |         0.381 |
  
 Script descriptions are as follows,
 

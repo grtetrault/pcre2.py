@@ -1,15 +1,18 @@
 # -*- coding:utf-8 -*-
 # cython: profile=True
 
+from cython cimport freelist
+from cython.operator cimport dereference
 from libc.stdint cimport uint8_t, uint32_t
 from libc.stdlib cimport malloc, free
 from libc.string cimport strlen
+from cpython cimport Py_INCREF, Py_DECREF, PyObject
 from cpython.unicode cimport PyUnicode_Check, PyUnicode_AsUTF8AndSize
 from cpython.bytes cimport PyBytes_Check, PyBytes_AsStringAndSize
 
 from _libpcre2 cimport *
 
-from enum import IntFlag
+from enum import IntFlag, IntEnum
 
 
 __libpcre2_version__ = f"{PCRE2_MAJOR}.{PCRE2_MINOR}"
@@ -41,6 +44,7 @@ cdef class PCRE2Code:
             pcre2_code_free(self.ptr)
 
 
+@freelist(8)
 cdef class PCRE2MatchData:
     cdef pcre2_match_data_t *ptr
 
@@ -59,6 +63,71 @@ cdef class PCRE2MatchData:
     def __dealloc__(self):
         if self.ptr is not NULL:
             pcre2_match_data_free(self.ptr)
+
+
+cdef class PCRE2MatchContext:
+    cdef pcre2_match_context_t *ptr
+    cdef object _callout_function  # Keep a reference to the wrapped callout function
+
+    @staticmethod
+    cdef PCRE2MatchContext from_ptr(pcre2_match_context_t *ptr, object callout_function):
+        """ Ownership of pointer is always taken by the new instance """
+        cdef PCRE2MatchContext match_context
+        match_context = PCRE2MatchContext.__new__(PCRE2MatchContext)
+        match_context.ptr = ptr
+        match_context._callout_function = callout_function
+        return match_context
+
+    def __init__(self, *args, **kwargs):
+        # Prevent accidental instantiation from normal Python code
+        raise TypeError(f"Cannot create 'PCRE2MatchContext' instances")
+
+    def __dealloc__(self):
+        if self.ptr is not NULL:
+            pcre2_match_context_free(self.ptr)
+
+
+@freelist(8)
+cdef class PCRE2CalloutBlock:
+    cdef pcre2_callout_block_t *ptr
+
+    @staticmethod
+    cdef PCRE2CalloutBlock copy_from_ptr(pcre2_callout_block_t *ptr):
+        """
+        Pointer content is copied into new memory location! Original pointer must be managed
+        independently. This is typically performed by PCRE2 as callout blocks are ephemeral
+        """
+        cdef:
+            PCRE2CalloutBlock callout_block
+            pcre2_callout_block_t *copy_ptr
+            size_t *copy_offset_vector
+            int idx
+
+        # Allocate memory for copied results
+        copy_ptr = <pcre2_callout_block_t *>malloc(sizeof(pcre2_callout_block_t))
+        copy_offset_vector = <size_t *>malloc(2 * ptr[0].capture_top * sizeof(size_t))
+
+        # First copy over contents of callout block as is
+        copy_ptr[0] = ptr[0]
+
+        # Now override the offset vector with a copied version
+        for idx in range(2 * ptr[0].capture_top):
+            copy_offset_vector[idx] = ptr[0].offset_vector[idx]
+        copy_ptr[0].offset_vector = copy_offset_vector
+
+        callout_block = PCRE2CalloutBlock.__new__(PCRE2CalloutBlock)
+        callout_block.ptr = copy_ptr
+        return callout_block
+
+    def __init__(self, *args, **kwargs):
+        # Prevent accidental instantiation from normal Python code
+        raise TypeError(f"Cannot create 'PCRE2CalloutBlock' instances")
+
+    def __dealloc__(self):
+        if self.ptr is not NULL:
+            if self.ptr[0].offset_vector is not NULL:
+                free(self.ptr[0].offset_vector)
+            free(self.ptr)
 
 
 # ============================================================================
@@ -182,6 +251,10 @@ class CompileOption(IntFlag):
     # be disabled by the `ASCII` flag in the Python wrapper
     UCP = PCRE2_UCP
 
+    NO_AUTO_POSSESS = PCRE2_NO_AUTO_POSSESS
+    NO_START_OPTIMIZE = PCRE2_NO_START_OPTIMIZE
+    NO_DOTSTAR_ANCHOR = PCRE2_NO_DOTSTAR_ANCHOR
+
 
 def compile(object pattern, uint32_t options = 0, disabled_options = 0):
     cdef:
@@ -275,7 +348,9 @@ def pattern_name_dict(PCRE2Code code not None):
     return name_dict
 
 
-def substring_span_bynumber(PCRE2MatchData match_data not None, object subject, size_t number):
+def match_substring_span_bynumber(
+    PCRE2MatchData match_data not None, object subject, size_t number
+):
     cdef:
         size_t *ovector
         uint8_t *subj_sptr
@@ -303,7 +378,7 @@ def substring_span_bynumber(PCRE2MatchData match_data not None, object subject, 
     return (-1, -1)
 
 
-def substring_bynumber(PCRE2MatchData match_data not None, object subject, size_t number):
+def match_substring_bynumber(PCRE2MatchData match_data not None, object subject, size_t number):
     cdef:
         size_t *ovector
         uint8_t *subj_sptr
@@ -329,6 +404,137 @@ def substring_bynumber(PCRE2MatchData match_data not None, object subject, size_
     if PyUnicode_Check(subject):
         res_obj = res_obj.decode("UTF-8")
     return res_obj
+
+
+def callout_block_substring_span_bynumber(
+    PCRE2CalloutBlock callout_block not None, object subject, size_t number
+):
+    cdef:
+        uint8_t *subj_sptr
+        size_t subj_size
+        size_t start
+        size_t end
+
+    # Get views into object memory
+    subj_sptr, subj_size = as_sptr_and_size(subject)
+
+    # Only perform offset lookup if group has been set
+    if number < callout_block.ptr[0].capture_top:
+        # Use the in progress match up until the callout as the "matched" substring
+        if number == 0:
+            start = callout_block.ptr[0].start_match
+            end = callout_block.ptr[0].current_position
+        # Otherwise look up the group offsets directly
+        else:
+            start = callout_block.ptr[0].offset_vector[2 * number]
+            end = callout_block.ptr[0].offset_vector[2 * number + 1]
+
+        if start != PCRE2_UNSET:
+            if PyUnicode_Check(subject):
+                start = idx_byte_to_char(subj_sptr, start)
+                end = idx_byte_to_char(subj_sptr, end)
+            return (start, end)
+
+    return (-1, -1)
+
+
+def callout_block_substring_bynumber(
+    PCRE2CalloutBlock callout_block not None, object subject, size_t number
+):
+    cdef:
+        uint8_t *subj_sptr
+        size_t subj_size
+        size_t start
+        size_t end
+
+    # Get views into object memory
+    subj_sptr, subj_size = as_sptr_and_size(subject)
+
+    # Only perform offset lookup if group has been set
+    if number < callout_block.ptr[0].capture_top:
+        # Use the in progress match up until the callout as the "matched" substring
+        if number == 0:
+            start = callout_block.ptr[0].start_match
+            end = callout_block.ptr[0].current_position
+        # Otherwise look up the group offsets directly
+        else:
+            start = callout_block.ptr[0].offset_vector[2 * number]
+            end = callout_block.ptr[0].offset_vector[2 * number + 1]
+
+        if start != PCRE2_UNSET:
+            res_obj = bytes(subj_sptr[start:end])
+            if PyUnicode_Check(subject):
+                res_obj = res_obj.decode("UTF-8")
+            return res_obj
+    return None
+
+
+def callout_block_get_value(PCRE2CalloutBlock callout_block not None):
+    if callout_block.ptr[0].callout_string is NULL:
+        callout_value = <int>callout_block.ptr[0].callout_number
+    else:
+        # Always decode callout strings into Python string types
+        callout_value = bytes(
+            callout_block.ptr[0].callout_string[:callout_block.ptr[0].callout_string_length]
+        )
+        callout_value = callout_value.decode("UTF-8")
+    return callout_value
+
+# ============================================================================
+#                                                            Callout functions
+
+class CalloutFunctionReturn(IntEnum):
+    PASS = 0
+    FAIL = 1
+    ABORT = -1
+
+
+cdef int callout_function_wrapper(
+    pcre2_callout_block_t *callout_block_ptr, void *callout_function_ptr
+) except *:
+    cdef:
+        PCRE2CalloutBlock callout_block
+        size_t group_number
+        object group
+        object groups
+        object callout
+        object callout_result
+        int32_t res
+
+    # Copy callout block data into Cython extension type
+    callout_block = PCRE2CalloutBlock.copy_from_ptr(callout_block_ptr)
+
+    # Convert the function pointer back to a Python object and call
+    callout_result = (<object>callout_function_ptr)(callout_block)
+    if callout_result is None:
+        callout_result = CalloutFunctionReturn.PASS
+
+    # Print nicer message if invalid return given
+    if not any(x.value == callout_result for x in CalloutFunctionReturn):
+        raise ValueError(
+            "Invalid callout function result, "
+            f"must be one of: {', '.join(f'{x.name}={x.value}' for x in CalloutFunctionReturn)}"
+        )
+    res = CalloutFunctionReturn(callout_result)
+    return res
+
+
+def create_match_context(object callout_function=None):
+    cdef:
+        pcre2_match_context_t *match_context_ptr
+        PyObject *callout_function_ptr
+
+    # Aquire pointer to empty match context
+    match_context_ptr = pcre2_match_context_create(NULL)
+    if match_context_ptr is NULL:
+        raise MemoryError
+
+    # Set the callout function if provided
+    if callout_function:
+        callout_function_ptr = <PyObject *>callout_function
+        pcre2_set_callout(match_context_ptr, callout_function_wrapper, callout_function_ptr)
+
+    return PCRE2MatchContext.from_ptr(match_context_ptr, callout_function)
 
 
 # ============================================================================
@@ -360,6 +566,7 @@ cdef PCRE2MatchData _match(
     size_t byte_length,
     size_t byte_offset,
     uint32_t options,
+    PCRE2MatchContext match_context,
 ) except *:
     cdef:
         pcre2_match_data_t *match_data_ptr
@@ -371,7 +578,9 @@ cdef PCRE2MatchData _match(
         raise MemoryError
 
     # Attempt match of pattern onto the subject
-    rc = _pcre2_match(code.ptr, subj_sptr, byte_length, byte_offset, options, match_data_ptr, NULL)
+    rc = _pcre2_match(
+        code.ptr, subj_sptr, byte_length, byte_offset, options, match_data_ptr, match_context.ptr
+    )
     if rc == PCRE2_ERROR_NOMATCH:
         return None
     raise_from_rc(rc)
@@ -383,6 +592,7 @@ def match(
     object subject,
     size_t length, # length & offset in logical (index) units
     size_t offset,
+    PCRE2MatchContext match_context not None,
     uint32_t options = 0,
 ):
     cdef:
@@ -412,7 +622,7 @@ def match(
             subj_size if offset == len(subject) else idx_char_to_byte(subj_sptr, subj_size, offset)
         )
 
-    return _match(code, subj_sptr, length, offset, options), offset, options
+    return _match(code, subj_sptr, length, offset, options, match_context), offset, options
 
 
 def match_generator(
@@ -420,6 +630,7 @@ def match_generator(
     object subject,
     size_t length, # length & offset in logical (index) units
     size_t offset,
+    PCRE2MatchContext match_context not None,
 ):
     cdef:
         uint32_t starting_options = 0
@@ -455,7 +666,9 @@ def match_generator(
     while byte_offset <= byte_length:
         match_options = starting_options | state_options
         match_byte_offset = byte_offset
-        match_data = _match(code, subj_sptr, byte_length, match_byte_offset, match_options)
+        match_data = _match(
+            code, subj_sptr, byte_length, match_byte_offset, match_options, match_context
+        )
         if not match_data:
             break
 
