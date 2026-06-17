@@ -51,7 +51,7 @@ jobs:
       matrix:
         include:
           - name: Windows AMD64
-            os: windows-2025
+            os: windows-2022
             platform: amd64
             build: cp*-win_amd64
           - name: Windows ARM64
