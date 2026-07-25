@@ -581,8 +581,14 @@ cdef PCRE2MatchData _match(
     rc = _pcre2_match(
         code.ptr, subj_sptr, byte_length, byte_offset, options, match_data_ptr, match_context.ptr
     )
+    
+    # Free the data if a match was not found
     if rc == PCRE2_ERROR_NOMATCH:
+        pcre2_match_data_free(match_data_ptr)
         return None
+
+    if rc < 0:
+        pcre2_match_data_free(match_data_ptr)
     raise_from_rc(rc)
 
     return PCRE2MatchData.from_ptr(match_data_ptr)
