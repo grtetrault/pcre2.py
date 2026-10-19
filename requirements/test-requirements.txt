@@ -2,3 +2,4 @@ twine
 pytest
 gitpython
 scalene
+setuptools

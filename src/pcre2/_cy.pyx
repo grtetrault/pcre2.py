@@ -1,7 +1,7 @@
 # -*- coding:utf-8 -*-
 # cython: profile=True
 
-from cython cimport freelist
+from cython cimport freelist, final
 from cython.operator cimport dereference
 from libc.stdint cimport uint8_t, uint32_t
 from libc.stdlib cimport malloc, free
@@ -9,8 +9,40 @@ from libc.string cimport strlen
 from cpython cimport Py_INCREF, Py_DECREF, PyObject
 from cpython.unicode cimport PyUnicode_Check, PyUnicode_AsUTF8AndSize
 from cpython.bytes cimport PyBytes_Check, PyBytes_AsStringAndSize
+from cpython.unicode cimport PyUnicode_CheckExact
+from cpython.bytes cimport PyBytes_CheckExact
+from cpython.ref cimport PyTypeObject
+from cpython.pycapsule cimport (
+    PyCapsule_New, PyCapsule_GetContext, PyCapsule_SetContext, PyCapsule_SetDestructor
+)
 
 from _libpcre2 cimport *
+
+from cpython.module cimport PyModule_Check
+
+cdef extern from *:
+    """
+    static int pcre2_matcher_gil_build(void) {
+    #ifdef Py_GIL_DISABLED
+        return 0;
+    #else
+        return 1;
+    #endif
+    }
+    """
+    int pcre2_matcher_gil_build()
+
+cdef extern from "matcher_api.h":
+    const char *PCRE2_MATCHER_API_NAME
+    unsigned int PCRE2_MATCHER_API_VERSION
+    ctypedef PyObject *(*MatcherNewFn)(PyTypeObject *, PyObject *, PyObject *) except NULL
+    ctypedef int (*MatcherSearchFn)(PyObject *, PyObject *) except -1
+    ctypedef struct Pcre2MatcherAPI:
+        unsigned int abi_version
+        size_t struct_size
+        PyTypeObject *matcher_type
+        MatcherNewFn new_matcher
+        MatcherSearchFn search
 
 from enum import IntFlag, IntEnum
 
@@ -807,3 +839,124 @@ def substitute(
 
     finally:
         free(res_sptr)
+
+
+@final
+cdef class _BooleanMatcher:
+    cdef PCRE2Code code
+    cdef object provider
+    cdef pcre2_match_data_t *scratch
+
+    def __init__(self, *args, **kwargs):
+        raise TypeError("Cannot create '_BooleanMatcher' instances directly")
+
+    def __dealloc__(self):
+        if self.scratch is not NULL:
+            pcre2_match_data_free(self.scratch)
+
+
+cdef PyObject *boolean_matcher_new(
+    PyTypeObject *matcher_type, PyObject *pattern_raw, PyObject *provider_raw
+) except NULL:
+    cdef object pattern = <object>pattern_raw
+    cdef object provider = <object>provider_raw
+    cdef object code
+    cdef _BooleanMatcher matcher
+
+    if not pcre2_matcher_gil_build():
+        raise NotImplementedError("The matcher API requires a GIL-enabled Python build")
+    if <object>matcher_type is not _BooleanMatcher:
+        raise TypeError("Invalid matcher type")
+    if not PyModule_Check(provider) or getattr(provider, "_BooleanMatcher", None) is not _BooleanMatcher:
+        raise TypeError("Invalid matcher provider")
+    from pcre2 import Pattern
+    if not isinstance(pattern, Pattern):
+        raise TypeError("Expected a compiled pcre2 pattern")
+    if pattern.callout is not None:
+        raise NotImplementedError("The matcher API does not support callouts")
+    code = pattern._pcre2_code
+    if not isinstance(code, PCRE2Code) or (<PCRE2Code>code).ptr is NULL:
+        raise TypeError("Expected a compiled pcre2 pattern")
+
+    matcher = _BooleanMatcher.__new__(_BooleanMatcher)
+    matcher.provider = provider
+    matcher.code = code
+    matcher.scratch = pcre2_match_data_create_from_pattern(matcher.code.ptr, NULL)
+    if matcher.scratch is NULL:
+        raise MemoryError
+    Py_INCREF(matcher)
+    return <PyObject *>matcher
+
+
+cdef int boolean_matcher_search(
+    PyObject *matcher_raw, PyObject *subject_raw
+) except -1:
+    cdef object obj = <object>matcher_raw
+    cdef object subject = <object>subject_raw
+    cdef _BooleanMatcher matcher
+    cdef uint8_t *buffer
+    cdef size_t length
+    cdef uint32_t options = 0
+    cdef int rc
+
+    if not pcre2_matcher_gil_build():
+        raise NotImplementedError("The matcher API requires a GIL-enabled Python build")
+    if not isinstance(obj, _BooleanMatcher):
+        raise TypeError("Expected a boolean matcher")
+    matcher = obj
+    if (<PyObject *>matcher.code is NULL or matcher.code is None or matcher.code.ptr is NULL or
+            matcher.scratch is NULL):
+        raise TypeError("Uninitialized boolean matcher")
+
+    # Preserve public normalization for subclasses and bytes-like subjects.
+    if not (PyUnicode_CheckExact(subject) or PyBytes_CheckExact(subject)):
+        if PyUnicode_Check(subject):
+            subject = str(subject)
+        elif isinstance(subject, (bytes, bytearray, memoryview)):
+            subject = bytes(subject)
+        else:
+            raise TypeError(f"Cannot process type {subject}")
+    if matcher.code._pattern_is_str ^ PyUnicode_Check(subject):
+        if matcher.code._pattern_is_str:
+            raise TypeError("Cannot use a string pattern on a bytes-like object")
+        raise TypeError("Cannot use a bytes pattern on a string-like object")
+    buffer, length = as_sptr_and_size(subject)
+    if PyUnicode_Check(subject):
+        options |= PCRE2_NO_UTF_CHECK
+
+    # The GIL remains held and Python callout callbacks are unsupported.
+    rc = pcre2_match(
+        matcher.code.ptr, buffer, length, 0, options, matcher.scratch, NULL
+    )
+    if rc == PCRE2_ERROR_NOMATCH:
+        return 0
+    raise_from_rc(rc)
+    return 1
+
+
+cdef void boolean_api_free(object capsule) noexcept:
+    cdef void *api = PyCapsule_GetContext(capsule)
+    free(api)
+
+
+cdef object boolean_api_create():
+    cdef Pcre2MatcherAPI *api = <Pcre2MatcherAPI *>malloc(sizeof(Pcre2MatcherAPI))
+    cdef object capsule
+    if api is NULL:
+        raise MemoryError
+    api.abi_version = PCRE2_MATCHER_API_VERSION
+    api.struct_size = sizeof(Pcre2MatcherAPI)
+    api.matcher_type = <PyTypeObject *>_BooleanMatcher
+    api.new_matcher = boolean_matcher_new
+    api.search = boolean_matcher_search
+    try:
+        capsule = PyCapsule_New(api, PCRE2_MATCHER_API_NAME, NULL)
+        PyCapsule_SetContext(capsule, api)
+        PyCapsule_SetDestructor(capsule, boolean_api_free)
+        return capsule
+    except:
+        free(api)
+        raise
+
+
+_MATCHER_API_v1 = boolean_api_create()

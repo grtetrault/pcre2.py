@@ -29,6 +29,7 @@ install(
     FILES
         _libpcre2.pxd
         _cy.pyx
+        matcher_api.h
     DESTINATION
         src/pcre2
 )

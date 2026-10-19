@@ -106,6 +106,105 @@ temp: c
 
 For a more in depth discussion on PCRE2 callouts - and on this particular use of callouts - read [this post from Rex Egg](https://www.rexegg.com/pcre-callouts.php).
 
+## Boolean search from a C extension
+
+C extensions that only need a match/no-match result can use the versioned capsule
+`pcre2._cy._MATCHER_API_v1`. This avoids a Python `Pattern.search` call and a
+`Match` object for each subject. Compile a normal `pcre2.Pattern` once, prepare a
+matcher through the capsule, and reuse it. Existing Python methods are unchanged.
+
+The installed package includes `matcher_api.h`. Add the directory containing
+`pcre2.__file__` to the calling extension's include directories. No PCRE2 library
+linking or PCRE2 pointer access is needed.
+
+The API table contains:
+
+* `abi_version` and `struct_size`, for compatibility checks.
+* `matcher_type`, a borrowed type belonging to the provider module.
+* `new_matcher(matcher_type, pattern, provider)`, returning a new owned Python
+  reference, or `NULL` with an exception. `pattern` must be a compiled
+  `pcre2.Pattern`; `provider` is the imported `pcre2._cy` module.
+* `search(matcher, subject)`, returning `1` for a match, `0` for no match, or `-1`
+  with an exception. It searches the whole subject, with no implicit anchoring,
+  just like `Pattern.search(subject)` without position arguments. String and
+  bytes-like subjects have the same normalization and type checks as that method.
+
+For example, a calling extension can retain the provider, capsule and table in
+its module state as follows:
+
+```c
+#include <Python.h>
+#include "matcher_api.h"
+
+typedef struct {
+    PyObject *provider;
+    PyObject *capsule;
+    const Pcre2MatcherAPI *api;
+} MatcherState;
+
+/* Initialize a zeroed state. Clear it on failure or module teardown. */
+static int
+load_matcher_api(MatcherState *state)
+{
+    state->provider = PyImport_ImportModule("pcre2._cy");
+    if (state->provider == NULL) return -1;
+    state->capsule = PyObject_GetAttrString(state->provider, "_MATCHER_API_v1");
+    if (state->capsule == NULL) return -1;
+    state->api = PyCapsule_GetPointer(state->capsule, PCRE2_MATCHER_API_NAME);
+    if (state->api == NULL) return -1;
+    if (state->api->abi_version != PCRE2_MATCHER_API_VERSION ||
+            state->api->struct_size < sizeof(Pcre2MatcherAPI) ||
+            state->api->matcher_type == NULL ||
+            state->api->new_matcher == NULL || state->api->search == NULL) {
+        PyErr_SetString(PyExc_RuntimeError, "Incompatible pcre2 matcher API");
+        return -1;
+    }
+    return 0;
+}
+
+static void
+clear_matcher_api(MatcherState *state)
+{
+    state->api = NULL;
+    Py_CLEAR(state->capsule);
+    Py_CLEAR(state->provider);
+}
+
+/* `pattern` is a pcre2.Pattern supplied to the calling extension. */
+static PyObject *
+prepare_matcher(MatcherState *state, PyObject *pattern)
+{
+    return state->api->new_matcher(state->api->matcher_type, pattern, state->provider);
+}
+
+static PyObject *
+check_subject(MatcherState *state, PyObject *matcher, PyObject *subject)
+{
+    int result = state->api->search(matcher, subject);
+    if (result < 0) return NULL;
+    return PyBool_FromLong(result);
+}
+```
+
+Check every returned pointer before use and release each matcher with
+`Py_DECREF`. Retain both the provider module and capsule while using the borrowed
+API table or type, and include those references in the calling module's traversal
+and cleanup. The table is read-only. Use it only in the interpreter where it was
+obtained. All calls require non-NULL arguments and the GIL. Free-threaded Python
+builds are unsupported, even with the GIL enabled at runtime; matcher preparation
+and search raise `NotImplementedError` on those builds.
+
+A matcher retains the compiled code present at preparation time, its provider,
+and reusable match storage. Deleting the original `Pattern`, or replacing its
+compiled code later, does not invalidate the matcher or change its pattern. JIT
+code already attached to that compiled code is used normally. The GIL remains
+held during native matching, and Python callout callbacks are unsupported. Calls sharing a matcher therefore reuse its match storage without
+a lock. Compilation and matcher preparation are outside the per-subject path.
+
+This API does not return captures or accept position/end-position arguments.
+Patterns with callout callbacks are rejected with `NotImplementedError`. Existing
+PCRE2 matching errors and subject-type errors are propagated as Python exceptions.
+
 ## Performance
 
 PCRE2 provides a fast regular expression library, particularly with JIT compilation enabled.
